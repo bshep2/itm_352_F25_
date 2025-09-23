@@ -1,0 +1,3 @@
+sentence = input("Please enter a sentence: ")
+length = len(sentence)
+print(f"The number of characters in your sentence is: {length}")

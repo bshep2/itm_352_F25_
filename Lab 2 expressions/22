@@ -1,0 +1,4 @@
+current_year = 2023
+year_born = int(input("Please enter the year you were born (four-digit number): "))
+age = current_year - year_born
+print(f"You entered: {year_born}. Your calculated age is: {age}.")

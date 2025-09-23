@@ -1,0 +1,10 @@
+current_year = 2023
+
+year_born = int(input("Please enter the year you were born (four-digit number): "))
+
+age = current_year - year_born
+
+# Round the age to 2 decimal places (though age is int, this is for demonstration)
+rounded_age = round(age, 2)
+
+print(f"You entered: {year_born}. Your calculated age is: {rounded_age}.")

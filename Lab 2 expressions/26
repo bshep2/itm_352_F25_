@@ -1,0 +1,1 @@
+weight_pounds = float(input("Enter weight in pounds: ")); print(f"{weight_pounds} pounds is equivalent to {weight_pounds * 0.453592} kilograms.")
