@@ -1,27 +1,32 @@
 [
   {
-    "question": "What is the airspeed of an unladen swallow in miles/hr?",
-    "options": ["12", "8", "11", "15"],
-    "answer": "11"
+    "question": "Which President served 3 terms?",
+    "options": ["Lebron James", "Richard Nixon", "Franklin Roosevelt", "Barack Obama"],
+    "answer": "Franklin Roosevelt"
   },
   {
-    "question": "What is the capital of Texas?",
-    "options": ["Austin", "San Antonio", "Dallas", "Waco"],
-    "answer": "Austin"
+    "question": "How many islands make up the state of Hawaii?",
+    "options": ["4", "200", "130", "137"],
+    "answer": "137"
   },
   {
-    "question": "The Last Supper was painted by which artist?",
-    "options": ["Da Vinci", "Rembrandt", "Picasso", "Michelangelo"],
-    "answer": "Da Vinci"
+    "question": "Who is the all-time leading scorer in all of NBA history?",
+    "options": ["Kareem Abdul Jabbar", "Steph Curry", "Lebron James", "Kylian Mbappe"],
+    "answer": "Kareem Abdul Jabbar"
   },
   {
-    "question": "Which classic novel opens with the line 'Call Me Ishmael'?",
-    "options": ["Moby Dick", "Wuthering Heights", "The Old Man and the Sea", "The Scarlet Letter"],
-    "answer": "Moby Dick"
+    "question": "Who is known for living under their stairs?",
+    "options": ["Harry Potter", "Johnny Test", "Courage the Cowardly Dog", "Spongebob Squarepants"],
+    "answer": "Harry Potter"
   },
   {
-    "question": "Frank Lloyd Wright designed a house that included a waterfall. What is the name of this house?",
-    "options": ["Fallingwater", "Watering Heights", "Mossyledge", "Taliesin"],
-    "answer": "Fallingwater"
+    "question": "Who was the first president of the United States?",
+    "options": ["Lebron James", "Thomas Jefferson", "Abraham Lincoln", "George Washington"],
+    "answer": "George Washington"
+  },
+  {
+    "question": "What is the largest planet in our solar system?",
+    "options": ["Earth", "Mars", "Jupiter", "Saturn"],
+    "answer": "Jupiter"
   }
 ]

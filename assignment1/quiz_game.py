@@ -1,9 +1,14 @@
 import json
 import random
+import os
+
+# Get the directory where this script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+json_path = os.path.join(script_dir, "questions.json")
 
 # Load questions from JSON file
 try:
-    with open("/Users/brandon/Documents/GitHub/itm_352_F25_/assignment1/questions.json") as f:
+    with open(json_path) as f:
         content = f.read()
         quiz_data = json.loads(content)
     
@@ -49,6 +54,10 @@ for i, question in enumerate(quiz_data, 1):
         score += 1
     else:
         print(f'✗ Wrong! The correct answer was {correct_letter}. {question["answer"]}')
+    
+    # Show explanation if available
+    if 'explanation' in question:
+        print(f' Explanation: {question["explanation"]}')
 
 # Display final score
 print('\n' + '=' * 50)
