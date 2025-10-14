@@ -57,7 +57,7 @@ for i, question in enumerate(quiz_data, 1):
     
     # Show explanation if available
     if 'explanation' in question:
-        print(f' Explanation: {question["explanation"]}')
+        print(f'\n  Explanation: {question["explanation"]}')
 
 # Display final score
 print('\n' + '=' * 50)

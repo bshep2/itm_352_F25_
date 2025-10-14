@@ -2,31 +2,37 @@
   {
     "question": "Which President served 3 terms?",
     "options": ["Lebron James", "Richard Nixon", "Franklin Roosevelt", "Barack Obama"],
-    "answer": "Franklin Roosevelt"
+    "answer": "Franklin Roosevelt",
+    "explanation": "Franklin D. Roosevelt served from 1933-1945, winning four presidential elections. He's the only U.S. president to serve more than two terms. The 22nd Amendment, passed in 1951, now limits presidents to two terms."
   },
   {
     "question": "How many islands make up the state of Hawaii?",
     "options": ["4", "200", "130", "137"],
-    "answer": "137"
+    "answer": "137",
+    "explanation": "Hawaii consists of 137 islands stretching over 1,500 miles. The eight main islands are Hawaii (Big Island), Maui, Oahu, Kauai, Molokai, Lanai, Niihau, and Kahoolawe."
   },
   {
     "question": "Who is the all-time leading scorer in all of NBA history?",
     "options": ["Kareem Abdul Jabbar", "Steph Curry", "Lebron James", "Kylian Mbappe"],
-    "answer": "Kareem Abdul Jabbar"
+    "answer": "Lebron James",
+    "explanation": "LeBron James became the NBA's all-time leading scorer on February 7, 2023, surpassing Kareem Abdul-Jabbar's record of 38,387 points that had stood since 1989."
   },
   {
     "question": "Who is known for living under their stairs?",
     "options": ["Harry Potter", "Johnny Test", "Courage the Cowardly Dog", "Spongebob Squarepants"],
-    "answer": "Harry Potter"
+    "answer": "Harry Potter",
+    "explanation": "Harry Potter lived in a cupboard under the stairs at his aunt and uncle's house (4 Privet Drive) before discovering he was a wizard and attending Hogwarts School of Witchcraft and Wizardry."
   },
   {
     "question": "Who was the first president of the United States?",
     "options": ["Lebron James", "Thomas Jefferson", "Abraham Lincoln", "George Washington"],
-    "answer": "George Washington"
+    "answer": "George Washington",
+    "explanation": "George Washington served as the first U.S. president from 1789-1797. He's known as the 'Father of His Country' and set many precedents for the office, including the two-term tradition."
   },
   {
     "question": "What is the largest planet in our solar system?",
     "options": ["Earth", "Mars", "Jupiter", "Saturn"],
-    "answer": "Jupiter"
+    "answer": "Jupiter",
+    "explanation": "Jupiter is the largest planet in our solar system with a diameter of about 88,846 miles. It's so large that all the other planets could fit inside it, and it has at least 95 known moons."
   }
 ]
