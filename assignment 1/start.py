@@ -1,9 +1,7 @@
 import json
 import random
 
-def load_questions(filepath):
-    with open(filepath, 'r') as file:
-        return json.load(file)
+def get_quiz_data(filename='questions.json'):
 
 def ask_question(question, options):
     print(question)
@@ -19,7 +17,7 @@ def ask_question(question, options):
             print("Incorrect, try again.")
 
 def main():
-    questions = load_questions('questions.json')
+    questions = get_quiz_data('questions.json')
     random.shuffle(questions)
 
     for question in questions:
