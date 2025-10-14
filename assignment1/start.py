@@ -3,14 +3,21 @@ import random
 
 def get_quiz_data(filename='questions.json'):
 
-def ask_question(question, options):
-    print(question)
-    for label, option in options.items():
-        print(f"{label}: {option}")
-    
+    try:
+    with open(filename, 'r') as file:
+        quiz_data = json.load(file)
+    return quiz_data
+    except FileNotFoundError:
+        print(f"Error: The file {filename} was not found.")
+    return None
+    except json.JSONDecodeError:
+        print(f"Error: The file {filename} is not a valid JSON file.")
+    return None
+
     while True:
-        answer = input("Select the correct answer by its label: ")
-        if answer in options and options[answer] == options['correct']:
+        answer = input("Select the correct answer by its label: ").strip().upper()
+        if answer in options:
+            if options[answer] == correct_answer:
             print("Correct!\n")
             return True
         else:
@@ -32,3 +39,14 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    for question in question list:
+    total_questionss_asked += 1
+    answers = quiz_data [question].copy() 
+    correct_answer =answers[0] 
+
+#
+Random.shuffle(answers)
+
+#
+correct_letter = chr(65 = answers.index(correct_answer) 
