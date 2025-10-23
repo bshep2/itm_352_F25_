@@ -65,7 +65,7 @@ def main():
         if 'explanation' in question:
             print(f'\n  Explanation: {question["explanation"]}')
     
-    # Display final score
+    # Display the final score
     total = len(quiz_data)
     percent = (score / total) * 100
     
