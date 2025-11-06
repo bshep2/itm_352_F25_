@@ -1,25 +1,27 @@
 import pandas as pd
 import ssl
 
-# had to disable ssl to load from github
+# Disable SSL to load from github
 ssl._create_default_https_context = ssl._create_unverified_context
 pd.set_option("display.float_format", "${:,.2f}".format)
 
 df = None
-saved_results = {}  # store all the analysis results
+saved_results = {}
 
 def load_data():
     global df
     url = 'https://raw.githubusercontent.com/bshep2/itm_352_F25_/main/assignment2_work/sales_data.csv'
     df = pd.read_csv(url)
-    # convert these to numbers in case they're strings
+    print("\n=== DATA COLUMNS ===")
+    print(df.columns.tolist())
+    print("====================\n")
     df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce')
     df['unit_price'] = pd.to_numeric(df['unit_price'], errors='coerce')
-    df['sales'] = df['quantity'] * df['unit_price']  # calculate total sales
+    df['sales'] = df['quantity'] * df['unit_price']
     print("Data loaded successfully!")
+    print(f"Total rows: {len(df)}")
 
 def export_result(data, analysis_name):
-    # ask if user wants excel file
     export = input("\nExport to Excel? (y/n): ")
     if export == 'y' or export == 'Y':
         filename = input("Enter filename (without .xlsx): ")
@@ -51,7 +53,14 @@ def show_first_rows():
     export_result(data, "First_rows")
 
 def total_sales_region_ordertype():
-    # pivot table - sales by region with retail/wholesale columns
+    # Check if required columns exist
+    if 'region' not in df.columns:
+        print("\nError: 'region' column not found in data")
+        return
+    if 'order_type' not in df.columns:
+        print("\nError: 'order_type' column not found in data")
+        return
+    
     pivot = pd.pivot_table(df, values='sales', index='region', 
                           columns='order_type', aggfunc='sum', margins=True)
     print("\nTotal Sales by Region and Order Type:")
@@ -60,13 +69,11 @@ def total_sales_region_ordertype():
     export_result(pivot, "Sales_by_region_ordertype")
 
 def avg_sales_by_region():
-    # calculate averages
     pivot = pd.pivot_table(df, values='sales', index='region', 
                           columns='order_type', aggfunc='mean', margins=True)
     print("\nAverage Sales by Region and Order Type:")
     print(pivot)
     
-    # also show average per state in each region
     print("\nAverage per state:")
     regions = df['region'].unique()
     for region in regions:
@@ -84,7 +91,6 @@ def avg_sales_by_region():
     export_result(pivot, "Avg_sales_region")
 
 def sales_customer_state():
-    # group by state and customer type
     pivot = pd.pivot_table(df, values='sales', 
                           index=['state','customer_type'], 
                           columns='order_type', aggfunc='sum', fill_value=0)
@@ -124,28 +130,30 @@ def unique_employees():
 def build_custom_pivot():
     print("\n=== Build Custom Pivot Table ===")
     
-    # options
-    row_options = ['employee_name','sales_region','product_category','region','state','category','product']
-    col_options = ['order_type','customer_type']
-    value_options = ['quantity','sales','unit_price']
-    agg_options = ['sum','mean','count']
-    
-    # user picks rows
+    # Show row options
     print("\nChoose row field(s):")
-    for i in range(len(row_options)):
-        print(f"  {i+1}. {row_options[i]}")
+    print("  1. employee_name")
+    print("  2. sales_region")
+    print("  3. product_category")
+    print("  4. region")
+    print("  5. state")
+    print("  6. category")
+    print("  7. product")
     row_input = input("Enter number(s) separated by commas: ")
+    
+    row_options = ['employee_name','sales_region','product_category','region','state','category','product']
     row_choices = []
     for num in row_input.split(','):
         idx = int(num) - 1
         row_choices.append(row_options[idx])
     
-    # user picks columns (optional)
+    # Show column options
     print("\nChoose column field(s) - optional:")
-    for i in range(len(col_options)):
-        print(f"  {i+1}. {col_options[i]}")
+    print("  1. order_type")
+    print("  2. customer_type")
     col_input = input("Enter number(s) separated by commas (or Enter for none): ")
     
+    col_options = ['order_type','customer_type']
     if col_input == '':
         col_choices = None
     else:
@@ -154,30 +162,42 @@ def build_custom_pivot():
             idx = int(num) - 1
             col_choices.append(col_options[idx])
     
-    # user picks values
+    # Show value options
     print("\nChoose value field(s):")
-    for i in range(len(value_options)):
-        print(f"  {i+1}. {value_options[i]}")
+    print("  1. quantity")
+    print("  2. sales")
+    print("  3. unit_price")
     val_input = input("Enter number(s) separated by commas: ")
+    
+    value_options = ['quantity','sales','unit_price']
     val_choices = []
     for num in val_input.split(','):
         idx = int(num) - 1
         val_choices.append(value_options[idx])
     
-    # user picks aggregation
+    # Show aggregation options
     print("\nChoose aggregation function(s):")
-    for i in range(len(agg_options)):
-        print(f"  {i+1}. {agg_options[i]}")
+    print("  1. sum")
+    print("  2. mean")
+    print("  3. count")
     agg_input = input("Enter number(s) separated by commas: ")
+    
+    agg_options = ['sum','mean','count']
     agg_choices = []
     for num in agg_input.split(','):
         idx = int(num) - 1
         agg_choices.append(agg_options[idx])
     
-    # create the pivot
-    # if only one value/agg, use string instead of list
-    values_to_use = val_choices[0] if len(val_choices) == 1 else val_choices
-    agg_to_use = agg_choices[0] if len(agg_choices) == 1 else agg_choices
+    # Create the pivot table
+    if len(val_choices) == 1:
+        values_to_use = val_choices[0]
+    else:
+        values_to_use = val_choices
+    
+    if len(agg_choices) == 1:
+        agg_to_use = agg_choices[0]
+    else:
+        agg_to_use = agg_choices
     
     pivot = pd.pivot_table(df, values=values_to_use, index=row_choices, 
                           columns=col_choices, aggfunc=agg_to_use, margins=True)
@@ -205,28 +225,13 @@ def exit_dashboard():
     print("\nThanks for using the dashboard!")
     return True
 
-# menu - tuple with menu text and function
-menu_items = (
-    ("Show the first n rows of sales data", show_first_rows),
-    ("Total sales by region and order_type", total_sales_region_ordertype),
-    ("Average sales by region with average sales by state and sale type", avg_sales_by_region),
-    ("Sales by customer type and order type by state", sales_customer_state),
-    ("Total sales quantity and price by region and product", sales_region_product),
-    ("Total sales quantity and price customer type", sales_by_customer),
-    ("Max and min sales price of sales by category", max_min_price_category),
-    ("Number of unique employees by region", unique_employees),
-    ("Create a custom pivot table", build_custom_pivot),
-    ("Show all saved results", show_saved_results),
-    ("Exit", exit_dashboard)
-)
-
+# Main program
 def main():
     print("Welcome to Sales Data Dashboard")
     load_data()
     
-    # main loop
     while True:
-        # display saved results if any
+        # Show saved results if any
         if len(saved_results) > 0:
             print("\n========== Saved Results ==========")
             counter = 1
@@ -234,32 +239,58 @@ def main():
                 print(f"  {counter}. {result_name}")
                 counter = counter + 1
         
-        # display menu
+        # Show menu
         print("\n--- Sales Data Dashboard ---")
-        menu_num = 1
-        for item in menu_items:
-            menu_text = item[0]
-            print(f"{menu_num}. {menu_text}")
-            menu_num = menu_num + 1
+        print("1. Show the first n rows of sales data")
+        print("2. Total sales by region and order_type")
+        print("3. Average sales by region with average sales by state and sale type")
+        print("4. Sales by customer type and order type by state")
+        print("5. Total sales quantity and price by region and product")
+        print("6. Total sales quantity and price customer type")
+        print("7. Max and min sales price of sales by category")
+        print("8. Number of unique employees by region")
+        print("9. Create a custom pivot table")
+        print("10. Show all saved results")
+        print("11. Exit")
         
-        # get user choice
         user_input = input("\nEnter your choice: ")
         
         try:
             choice = int(user_input)
             
-            if choice < 1 or choice > len(menu_items):
-                print(f"Please enter a number between 1 and {len(menu_items)}")
+            if choice < 1 or choice > 11:
+                print("Please enter a number between 1 and 11")
                 input("\nPress Enter to continue...")
                 continue
             
-            # run the selected function
-            selected_item = menu_items[choice - 1]
-            selected_function = selected_item[1]
-            should_exit = selected_function()
-            
-            if should_exit == True:
-                break
+            # Run the selected function
+            try:
+                if choice == 1:
+                    show_first_rows()
+                elif choice == 2:
+                    total_sales_region_ordertype()
+                elif choice == 3:
+                    avg_sales_by_region()
+                elif choice == 4:
+                    sales_customer_state()
+                elif choice == 5:
+                    sales_region_product()
+                elif choice == 6:
+                    sales_by_customer()
+                elif choice == 7:
+                    max_min_price_category()
+                elif choice == 8:
+                    unique_employees()
+                elif choice == 9:
+                    build_custom_pivot()
+                elif choice == 10:
+                    show_saved_results()
+                elif choice == 11:
+                    exit_dashboard()
+                    break
+            except KeyError as e:
+                print(f"\nError: Column {e} not found in data")
+                print(f"Available columns: {list(df.columns)}")
             
         except ValueError:
             print("Invalid input. Please enter a number.")
@@ -268,6 +299,5 @@ def main():
         
         input("\nPress Enter to continue...")
 
-# run program
 if __name__ == "__main__":
     main()
