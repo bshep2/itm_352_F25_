@@ -84,7 +84,7 @@ def avg_sales_by_region():
     regions = df['region'].unique()
     for region in regions:
         region_df = df[df['region'] == region]
-        num_states = region_df['state'].nunique()
+        num_states = region_df['customer_state'].nunique()
         
         retail_sales = region_df[region_df['order_type']=='Retail']['sales'].sum()
         wholesale_sales = region_df[region_df['order_type']=='Wholesale']['sales'].sum()
@@ -98,7 +98,7 @@ def avg_sales_by_region():
 
 def sales_customer_state():
     pivot = pd.pivot_table(df, values='sales', 
-                          index=['state','customer_type'], 
+                          index=['customer_state','customer_type'], 
                           columns='order_type', aggfunc='sum', fill_value=0)
     print("\nSales by Customer Type and Order Type (by State):")
     print(pivot)
@@ -106,7 +106,7 @@ def sales_customer_state():
     export_result(pivot, "Sales_customer_state")
 
 def sales_region_product():
-    grouped = df.groupby(['region','product']).agg({'quantity':'sum','sales':'sum'})
+    grouped = df.groupby(['region','produce_name']).agg({'quantity':'sum','sales':'sum'})
     print("\nQuantity and Sales by Region and Product:")
     print(grouped)
     saved_results["Sales_region_product"] = grouped
@@ -120,7 +120,7 @@ def sales_by_customer():
     export_result(grouped, "Sales_by_customer")
 
 def max_min_price_category():
-    stats = df.groupby('category')['unit_price'].agg(['max','min'])
+    stats = df.groupby('product_category')['unit_price'].agg(['max','min'])
     print("\nMax and Min Prices by Category:")
     print(stats)
     saved_results["Price_by_category"] = stats
@@ -139,15 +139,14 @@ def build_custom_pivot():
     # Show row options
     print("\nChoose row field(s):")
     print("  1. employee_name")
-    print("  2. sales_region")
+    print("  2. region")
     print("  3. product_category")
-    print("  4. region")
-    print("  5. state")
-    print("  6. category")
-    print("  7. product")
+    print("  4. customer_state")
+    print("  5. job_title")
+    print("  6. produce_name")
     row_input = input("Enter number(s) separated by commas: ")
     
-    row_options = ['employee_name','sales_region','product_category','region','state','category','product']
+    row_options = ['employee_name','region','product_category','customer_state','job_title','produce_name']
     row_choices = []
     for num in row_input.split(','):
         idx = int(num) - 1
