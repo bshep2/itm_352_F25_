@@ -10,7 +10,7 @@ saved_results = {}
 
 def load_data():
     global df
-    url = 'https://raw.githubusercontent.com/bshep2/itm_352_F25_/main/assignment2_work/sales_data.csv'
+    url = 'https://drive.google.com/uc?export=download&id=1Fv_vhoN4sTrUaozFPfzr0NCyHJLIeXEA'
     df = pd.read_csv(url)
     print("\n=== DATA COLUMNS ===")
     print(df.columns.tolist())
