@@ -10,8 +10,14 @@ saved_results = {}
 
 def load_data():
     global df
-    url = 'https://github.com/bshep2/itm_352_F25_/blob/main/assignment2_work/sales_data.csv'
-    df = pd.read_csv(url)
+    # Load from file in same directory
+    import os
+    
+    # Get the directory where this script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(script_dir, 'sales_data.csv')
+    
+    df = pd.read_csv(file_path)
     print("\n=== DATA COLUMNS ===")
     print(df.columns.tolist())
     print("====================\n")

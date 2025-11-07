@@ -1,4 +1,4 @@
-order_number,employee_id,employee_name,job_title,sales_region,order_date,order_type,customer_type,customer_name,customer_state,product_category,product_number,produce_name,quantity,unit_price
+order_number,employee_id,employee_name,job_title,region,order_date,order_type,customer_type,customer_name,customer_state,product_category,product_number,produce_name,quantity,unit_price
 1102935,900019019,Alexandra Kundt,Senior Sales Associate,S Central East,9/2/19,Retail,Individual,Skipton Fealty,Arkansas,Olive Oil,OO206,Chili Extra Virgin Olive Oil 2pk,3,45
 1102976,900019019,Alexandra Kundt,Senior Sales Associate,S Central East,15/02/2019,Retail,Individual,Lanni D'Ambrogi,Missouri,Gift Basket,GB301,Scented Olive Oil Candle Gift Basket,1,19.5
 1102988,900019019,Alexandra Kundt,Senior Sales Associate,S Central East,16/02/2019,Retail,Individual,Far Pow,Mississippi,Olive Oil,OO302,Chili Extra Virgin Olive Oil,4,26
