@@ -60,14 +60,14 @@ def show_first_rows():
 
 def total_sales_region_ordertype():
     # Check if required columns exist
-    if 'region' not in df.columns:
-        print("\nError: 'region' column not found in data")
+    if 'sales_region' not in df.columns:
+        print("\nError: 'sales_region' column not found in data")
         return
     if 'order_type' not in df.columns:
         print("\nError: 'order_type' column not found in data")
         return
     
-    pivot = pd.pivot_table(df, values='sales', index='region', 
+    pivot = pd.pivot_table(df, values='sales', index='sales_region', 
                           columns='order_type', aggfunc='sum', margins=True)
     print("\nTotal Sales by Region and Order Type:")
     print(pivot)
@@ -75,15 +75,15 @@ def total_sales_region_ordertype():
     export_result(pivot, "Sales_by_region_ordertype")
 
 def avg_sales_by_region():
-    pivot = pd.pivot_table(df, values='sales', index='region', 
+    pivot = pd.pivot_table(df, values='sales', index='sales_region', 
                           columns='order_type', aggfunc='mean', margins=True)
     print("\nAverage Sales by Region and Order Type:")
     print(pivot)
     
     print("\nAverage per state:")
-    regions = df['region'].unique()
+    regions = df['sales_region'].unique()
     for region in regions:
-        region_df = df[df['region'] == region]
+        region_df = df[df['sales_region'] == region]
         num_states = region_df['customer_state'].nunique()
         
         retail_sales = region_df[region_df['order_type']=='Retail']['sales'].sum()
@@ -106,7 +106,7 @@ def sales_customer_state():
     export_result(pivot, "Sales_customer_state")
 
 def sales_region_product():
-    grouped = df.groupby(['region','produce_name']).agg({'quantity':'sum','sales':'sum'})
+    grouped = df.groupby(['sales_region','produce_name']).agg({'quantity':'sum','sales':'sum'})
     print("\nQuantity and Sales by Region and Product:")
     print(grouped)
     saved_results["Sales_region_product"] = grouped
@@ -127,7 +127,7 @@ def max_min_price_category():
     export_result(stats, "Price_by_category")
 
 def unique_employees():
-    counts = df.groupby('region')['employee_id'].nunique()
+    counts = df.groupby('sales_region')['employee_id'].nunique()
     print("\nNumber of Unique Employees by Region:")
     print(counts)
     saved_results["Employees_by_region"] = counts
@@ -139,14 +139,14 @@ def build_custom_pivot():
     # Show row options
     print("\nChoose row field(s):")
     print("  1. employee_name")
-    print("  2. region")
+    print("  2. sales_region")
     print("  3. product_category")
     print("  4. customer_state")
     print("  5. job_title")
     print("  6. produce_name")
     row_input = input("Enter number(s) separated by commas: ")
     
-    row_options = ['employee_name','region','product_category','customer_state','job_title','produce_name']
+    row_options = ['employee_name','sales_region','product_category','customer_state','job_title','produce_name']
     row_choices = []
     for num in row_input.split(','):
         idx = int(num) - 1
