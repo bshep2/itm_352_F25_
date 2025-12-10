@@ -1,0 +1,440 @@
+"""
+Flask Quiz Application - Complete Backend Server
+No separate HTML file needed - everything in one file!
+"""
+
+from flask import Flask, jsonify, request, session
+import json
+import random
+import webbrowser
+import threading
+
+app = Flask(__name__)
+app.secret_key = 'your-secret-key-here-change-this'
+
+# Load questions from JSON file
+def load_questions():
+    """Load questions from JSON file"""
+    import os
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"Looking for: questionsfor3.json")
+    
+    if not os.path.exists('questionsfor3.json'):
+        print("ERROR: questionsfor3.json not found!")
+        print(f"Files in directory: {os.listdir('.')}")
+        return []
+    
+    try:
+        with open('questionsfor3.json', 'r', encoding='utf-8') as f:
+            questions = json.load(f)
+            print(f"SUCCESS: Loaded {len(questions)} questions from JSON file")
+            for i, q in enumerate(questions, 1):
+                print(f"  Question {i}: {q['question'][:50]}...")
+            return questions
+    except json.JSONDecodeError as e:
+        print(f"ERROR: Invalid JSON format - {e}")
+        return []
+    except Exception as e:
+        print(f"ERROR: {e}")
+        return []
+
+@app.route('/')
+def index():
+    """Serve the main quiz page"""
+    return '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz App</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 30px;
+        }
+        h1 { color: #667eea; text-align: center; margin-bottom: 25px; }
+        .screen { display: none; }
+        .screen.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        input, .btn {
+            width: 100%;
+            padding: 12px;
+            font-size: 1em;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            margin-bottom: 15px;
+        }
+        input:focus { outline: none; border-color: #667eea; }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn:hover { transform: translateY(-2px); }
+        
+        .progress-bar {
+            background: #e0e0e0;
+            height: 8px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.5s;
+        }
+        .question-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            color: #666;
+            font-size: 0.9em;
+        }
+        .question-text {
+            font-size: 1.2em;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .option {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .option:hover { border-color: #667eea; background: #f8f9ff; }
+        .option.selected { border-color: #667eea; background: #f0f3ff; }
+        .option.correct { border-color: #4caf50; background: #e8f5e9; }
+        .option.incorrect { border-color: #f44336; background: #ffebee; }
+        
+        .feedback {
+            display: none;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .feedback.show { display: block; }
+        .feedback.correct { background: #e8f5e9; border-left: 4px solid #4caf50; }
+        .feedback.incorrect { background: #ffebee; border-left: 4px solid #f44336; }
+        
+        .score-circle {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin: 20px auto;
+            color: white;
+        }
+        .score-percent { font-size: 2.5em; font-weight: bold; }
+        .score-details { text-align: center; margin-bottom: 20px; }
+        
+        .review-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #e0e0e0;
+            font-size: 0.9em;
+        }
+        .review-item.correct { background: #e8f5e9; border-left-color: #4caf50; }
+        .review-item.incorrect { background: #ffebee; border-left-color: #f44336; }
+        #reviewSection { max-height: 400px; overflow-y: auto; margin-top: 20px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Quiz Challenge</h1>
+
+        <div id="welcomeScreen" class="screen active">
+            <input type="text" id="usernameInput" placeholder="Enter your name" autofocus>
+            <button class="btn" onclick="startQuiz()">Start Quiz</button>
+        </div>
+
+        <div id="quizScreen" class="screen">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="question-info">
+                <span id="questionNumber"></span>
+                <span id="questionPoints"></span>
+            </div>
+            <div class="question-text" id="questionText"></div>
+            <div id="optionsContainer"></div>
+            <div class="feedback" id="feedback"></div>
+            <button class="btn" id="nextBtn" onclick="nextQuestion()" style="display: none;">Next</button>
+        </div>
+
+        <div id="resultsScreen" class="screen">
+            <div class="score-circle">
+                <div class="score-percent" id="scorePercent">0%</div>
+            </div>
+            <div class="score-details">
+                <h2 id="resultMessage"></h2>
+                <p id="scoreDetails"></p>
+            </div>
+            <button class="btn" onclick="showReview()">Review Answers</button>
+            <button class="btn" onclick="location.reload()">Restart</button>
+            <div id="reviewSection"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentQ = null, selectedAns = null;
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        async function startQuiz() {
+            const username = document.getElementById('usernameInput').value.trim() || 'Guest';
+            console.log('Starting quiz for:', username);
+            try {
+                const res = await fetch('/api/start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username})
+                });
+                const data = await res.json();
+                console.log('Start response:', data);
+                if (res.ok) {
+                    loadQuestion();
+                } else {
+                    alert('Error starting quiz. Check console for details.');
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Failed to start quiz. Is the server running?');
+            }
+        }
+
+        async function loadQuestion() {
+            console.log('Loading question...');
+            try {
+                const res = await fetch('/api/question');
+                const data = await res.json();
+                console.log('Question data:', data);
+                if (data.done) { showResults(); return; }
+
+            currentQ = data;
+            selectedAns = null;
+
+            document.getElementById('progressFill').style.width = (data.num/data.total*100) + '%';
+            document.getElementById('questionNumber').textContent = `Question ${data.num}/${data.total}`;
+            document.getElementById('questionPoints').textContent = `⭐ ${data.points} pt`;
+            document.getElementById('questionText').textContent = data.question;
+
+            const container = document.getElementById('optionsContainer');
+            container.innerHTML = '';
+            data.options.forEach((opt, i) => {
+                const div = document.createElement('div');
+                div.className = 'option';
+                div.textContent = opt;
+                div.onclick = () => selectOption(i, div);
+                container.appendChild(div);
+            });
+
+            document.getElementById('feedback').classList.remove('show');
+            document.getElementById('nextBtn').style.display = 'none';
+            showScreen('quizScreen');
+            } catch (err) {
+                console.error('Error loading question:', err);
+                alert('Error loading question. Check console.');
+            }
+        }
+
+        function selectOption(i, el) {
+            if (selectedAns !== null) return;
+            selectedAns = currentQ.options[i];
+            document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+            el.classList.add('selected');
+            submitAnswer();
+        }
+
+        async function submitAnswer() {
+            const res = await fetch('/api/answer', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({answer: selectedAns})
+            });
+            const data = await res.json();
+
+            const fb = document.getElementById('feedback');
+            fb.className = `feedback ${data.correct ? 'correct' : 'incorrect'} show`;
+            fb.innerHTML = `<strong>${data.correct ? '✓ Correct!' : '✗ Incorrect'}</strong><br>
+                ${!data.correct ? `Correct: ${data.answer}<br>` : ''}${data.explanation}`;
+
+            document.querySelectorAll('.option').forEach(o => {
+                if (o.textContent === data.answer) o.classList.add('correct');
+                else if (o.textContent === selectedAns && !data.correct) o.classList.add('incorrect');
+                o.style.pointerEvents = 'none';
+            });
+
+            document.getElementById('nextBtn').style.display = 'block';
+            document.getElementById('nextBtn').textContent = data.done ? 'View Results' : 'Next';
+        }
+
+        function nextQuestion() { loadQuestion(); }
+
+        async function showResults() {
+            const res = await fetch('/api/results');
+            const data = await res.json();
+
+            document.getElementById('scorePercent').textContent = Math.round(data.percent) + '%';
+            const msg = data.percent >= 90 ? '🏆 Outstanding!' : data.percent >= 70 ? '🎉 Great!' : 
+                        data.percent >= 50 ? '👍 Good!' : '📚 Keep trying!';
+            document.getElementById('resultMessage').textContent = msg;
+            document.getElementById('scoreDetails').textContent = `${data.score}/${data.total} points`;
+
+            window.results = data.answers;
+            showScreen('resultsScreen');
+        }
+
+        function showReview() {
+            const sec = document.getElementById('reviewSection');
+            sec.innerHTML = '<h3>Review</h3>';
+            window.results.forEach((a, i) => {
+                const div = document.createElement('div');
+                div.className = `review-item ${a.is_correct ? 'correct' : 'incorrect'}`;
+                div.innerHTML = `<strong>${i+1}. ${a.question}</strong><br>
+                    Your answer: ${a.user_answer}${!a.is_correct ? `<br>Correct: ${a.correct_answer}` : ''}<br>
+                    <em>${a.explanation}</em>`;
+                sec.appendChild(div);
+            });
+            sec.style.display = 'block';
+        }
+
+        document.getElementById('usernameInput').onkeypress = e => { if(e.key === 'Enter') startQuiz(); };
+    </script>
+</body>
+</html>'''
+
+@app.route('/api/start', methods=['POST'])
+def start_quiz():
+    """Initialize a new quiz session"""
+    data = request.get_json()
+    username = data.get('username', 'Guest')
+    
+    # Load and randomize questions
+    questions = load_questions()
+    random.shuffle(questions)
+    
+    # Randomize answer options for each question
+    for q in questions:
+        random.shuffle(q['options'])
+    
+    # Store in session
+    session['username'] = username
+    session['questions'] = questions
+    session['current_question'] = 0
+    session['score'] = 0
+    session['max_score'] = sum(q.get('points', 1) for q in questions)
+    session['answers'] = []
+    
+    return jsonify({'success': True})
+
+@app.route('/api/question', methods=['GET'])
+def get_question():
+    """Get the current question"""
+    current = session.get('current_question', 0)
+    questions = session.get('questions', [])
+    
+    if current >= len(questions):
+        return jsonify({'done': True})
+    
+    question = questions[current]
+    return jsonify({
+        'done': False,
+        'num': current + 1,
+        'total': len(questions),
+        'question': question['question'],
+        'options': question['options'],
+        'category': question.get('category', 'General'),
+        'points': question.get('points', 1)
+    })
+
+@app.route('/api/answer', methods=['POST'])
+def submit_answer():
+    """Submit an answer and get feedback"""
+    data = request.get_json()
+    user_answer = data.get('answer')
+    
+    current = session.get('current_question', 0)
+    questions = session.get('questions', [])
+    question = questions[current]
+    
+    is_correct = user_answer == question['correct']
+    points = question.get('points', 1)
+    
+    # Update score
+    if is_correct:
+        session['score'] = session.get('score', 0) + points
+    
+    # Save answer
+    answers = session.get('answers', [])
+    answers.append({
+        'question': question['question'],
+        'user_answer': user_answer,
+        'correct_answer': question['correct'],
+        'is_correct': is_correct,
+        'points': points if is_correct else 0,
+        'max_points': points,
+        'category': question.get('category', 'General'),
+        'explanation': question.get('explanation', 'No explanation available.')
+    })
+    session['answers'] = answers
+    
+    # Move to next question
+    session['current_question'] = current + 1
+    
+    return jsonify({
+        'correct': is_correct,
+        'answer': question['correct'],
+        'explanation': question.get('explanation', 'No explanation available.'),
+        'points': points if is_correct else 0,
+        'done': session['current_question'] >= len(questions)
+    })
+
+@app.route('/api/results', methods=['GET'])
+def get_results():
+    """Get final quiz results"""
+    score = session.get('score', 0)
+    max_score = session.get('max_score', 0)
+    answers = session.get('answers', [])
+    
+    percent = (score / max_score * 100) if max_score > 0 else 0
+    
+    return jsonify({
+        'score': score,
+        'total': max_score,
+        'percent': round(percent, 1),
+        'answers': answers
+    })
+
+def open_browser():
+    """Open browser after a short delay"""
+    webbrowser.open_new('http://127.0.0.1:5001/')
+
+if __name__ == '__main__':
+    # Open browser automatically after 1 second
+    threading.Timer(1, open_browser).start()
+    app.run(debug=True, port=5001)
