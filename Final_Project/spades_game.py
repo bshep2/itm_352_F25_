@@ -57,7 +57,7 @@ class SpadesGame:
         self.main_frame.pack(fill=tk.BOTH, expand=True)
         
         tk.Label(self.main_frame, text="♠ Spades to 300 ♠", 
-                font=('Arial', 28, 'bold'), bg='#2d5016', fg='white').pack(pady=10)
+                font=('Arial', 28, 'bold'), bg='#2d5016', fg='black').pack(pady=10)
         
         score_frame = tk.Frame(self.main_frame, bg='#2d5016')
         score_frame.pack(pady=5)
@@ -66,24 +66,24 @@ class SpadesGame:
         team1_frame = tk.Frame(score_frame, bg='#1a3a0f', relief=tk.RAISED, bd=2)
         team1_frame.pack(side=tk.LEFT, padx=10)
         tk.Label(team1_frame, text="Team 1 (You & North)", 
-                font=('Arial', 12, 'bold'), bg='#1a3a0f', fg='white').pack(pady=3)
+                font=('Arial', 12, 'bold'), bg='#1a3a0f', fg='black').pack(pady=3)
         self.team1_score = tk.Label(team1_frame, text="0/300", 
-                                    font=('Arial', 16, 'bold'), bg='#1a3a0f', fg='yellow')
+                                    font=('Arial', 16, 'bold'), bg='#1a3a0f', fg='black')
         self.team1_score.pack()
         self.team1_bags = tk.Label(team1_frame, text="Bags: 0", 
-                                   font=('Arial', 9), bg='#1a3a0f', fg='white')
+                                   font=('Arial', 9), bg='#1a3a0f', fg='black')
         self.team1_bags.pack(pady=3)
         
         # Team 2 Score
         team2_frame = tk.Frame(score_frame, bg='#1a3a0f', relief=tk.RAISED, bd=2)
         team2_frame.pack(side=tk.LEFT, padx=10)
         tk.Label(team2_frame, text="Team 2 (East & West)", 
-                font=('Arial', 12, 'bold'), bg='#1a3a0f', fg='white').pack(pady=3)
+                font=('Arial', 12, 'bold'), bg='#1a3a0f', fg='black').pack(pady=3)
         self.team2_score = tk.Label(team2_frame, text="0/300", 
-                                    font=('Arial', 16, 'bold'), bg='#1a3a0f', fg='yellow')
+                                    font=('Arial', 16, 'bold'), bg='#1a3a0f', fg='black')
         self.team2_score.pack()
         self.team2_bags = tk.Label(team2_frame, text="Bags: 0", 
-                                   font=('Arial', 9), bg='#1a3a0f', fg='white')
+                                   font=('Arial', 9), bg='#1a3a0f', fg='black')
         self.team2_bags.pack(pady=3)
         
         # Message area
@@ -164,7 +164,7 @@ class SpadesGame:
         hand_frame = tk.Frame(self.game_frame, bg='#2d5016')
         hand_frame.pack(side=tk.BOTTOM, pady=10)
         tk.Label(hand_frame, text="Your Hand:", font=('Arial', 12, 'bold'), 
-                bg='#2d5016', fg='white').pack()
+                bg='#2d5016', fg='black').pack()
         cards_frame = tk.Frame(hand_frame, bg='#2d5016')
         cards_frame.pack()
         for card in self.hands[0]:
@@ -218,11 +218,11 @@ class SpadesGame:
         north = tk.Frame(self.game_frame, bg='#1a3a0f', relief=tk.RAISED, bd=2)
         north.pack(side=tk.TOP, pady=5)
         tk.Label(north, text=f"North - {self.bid_text(2)} | Won: {self.tricks[2]}", 
-                font=('Arial', 10, 'bold'), bg='#1a3a0f', fg='white').pack(pady=3)
+                font=('Arial', 10, 'bold'), bg='#1a3a0f', fg='black').pack(pady=3)
         nc = tk.Frame(north, bg='#1a3a0f')
         nc.pack()
         for _ in self.hands[2]:
-            tk.Label(nc, text="🂠", font=('Arial', 16), bg='#1a3a0f', fg='white').pack(side=tk.LEFT)
+            tk.Label(nc, text="🂠", font=('Arial', 16), bg='#1a3a0f', fg='black').pack(side=tk.LEFT)
         
         # Middle section
         mid = tk.Frame(self.game_frame, bg='#2d5016')
@@ -232,9 +232,9 @@ class SpadesGame:
         west = tk.Frame(mid, bg='#1a3a0f', relief=tk.RAISED, bd=2)
         west.pack(side=tk.LEFT, padx=5, anchor=tk.W)
         tk.Label(west, text=f"West\n{self.bid_text(3)}\n{self.tricks[3]}", 
-                font=('Arial', 9, 'bold'), bg='#1a3a0f', fg='white').pack(pady=3)
+                font=('Arial', 9, 'bold'), bg='#1a3a0f', fg='black').pack(pady=3)
         for _ in self.hands[3]:
-            tk.Label(west, text="🂠", font=('Arial', 14), bg='#1a3a0f', fg='white').pack()
+            tk.Label(west, text="🂠", font=('Arial', 14), bg='#1a3a0f', fg='black').pack()
         
         # Center trick area
         center = tk.Frame(mid, bg='#1a5016', relief=tk.SUNKEN, bd=4, width=350, height=250)
@@ -250,21 +250,21 @@ class SpadesGame:
                 cf.pack(side=tk.LEFT, padx=8)
                 self.make_card(cf, play['card'], False).pack()
                 tk.Label(cf, text=names[play['player']], 
-                        font=('Arial', 9), bg='#1a5016', fg='white').pack()
+                        font=('Arial', 9), bg='#1a5016', fg='black').pack()
         
         # East player
         east = tk.Frame(mid, bg='#1a3a0f', relief=tk.RAISED, bd=2)
         east.pack(side=tk.LEFT, padx=5, anchor=tk.E)
         tk.Label(east, text=f"East\n{self.bid_text(1)}\n{self.tricks[1]}", 
-                font=('Arial', 9, 'bold'), bg='#1a3a0f', fg='white').pack(pady=3)
+                font=('Arial', 9, 'bold'), bg='#1a3a0f', fg='black').pack(pady=3)
         for _ in self.hands[1]:
-            tk.Label(east, text="🂠", font=('Arial', 14), bg='#1a3a0f', fg='white').pack()
+            tk.Label(east, text="🂠", font=('Arial', 14), bg='#1a3a0f', fg='black').pack()
         
         # Your hand
         hand = tk.Frame(self.game_frame, bg='#2d5016')
         hand.pack(side=tk.BOTTOM, pady=5)
         tk.Label(hand, text=f"Your Hand - {self.bid_text(0)} | Won: {self.tricks[0]}", 
-                font=('Arial', 11, 'bold'), bg='#2d5016', fg='white').pack()
+                font=('Arial', 11, 'bold'), bg='#2d5016', fg='black').pack()
         cards = tk.Frame(hand, bg='#2d5016')
         cards.pack()
         
