@@ -601,4 +601,5 @@ class SpadesGame:
             # Your hand
             hand = tk.Frame(self.game_frame, bg=COLOR_GREEN_DARK)
             hand.pack(side=tk.BOTTOM, pady=5)
-            tk.Label(hand,
+            tk.Label(hand, text="Your Hand:", font=('Arial', 12, 'bold'), 
+                    bg=COLOR_GREEN_DARK, fg=COLOR_BLACK).pack()
