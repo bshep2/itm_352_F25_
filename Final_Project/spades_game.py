@@ -109,10 +109,10 @@ class SpadesGame:
         frame.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
         
         tk.Label(frame, text=f"Tutorial {self.tutorial_step + 1}/{len(self.tutorials)}", 
-                font=('Arial', 16, 'bold'), bg='white').pack(pady=15, padx=20)
+                font=('Arial', 16, 'bold'), bg='white', fg='black').pack(pady=15, padx=20)
         
         tk.Label(frame, text=self.tutorials[self.tutorial_step], 
-                font=('Arial', 12), bg='white', wraplength=500).pack(pady=15, padx=20)
+                font=('Arial', 12), bg='white', fg='black', wraplength=500).pack(pady=15, padx=20)
         
         btn_frame = tk.Frame(frame, bg='white')
         btn_frame.pack(pady=15)
@@ -175,17 +175,17 @@ class SpadesGame:
         bid_frame.place(relx=0.5, rely=0.35, anchor=tk.CENTER)
         
         tk.Label(bid_frame, text="Place Your Bid", font=('Arial', 16, 'bold'), 
-                bg='white').pack(pady=8)
+                bg='white', fg='black').pack(pady=8)
         
         tk.Button(bid_frame, text="🤝 DEAL (+100 for 0 tricks, -100 if any)", 
-                 font=('Arial', 11, 'bold'), bg='#f44336', fg='white', 
+                 font=('Arial', 11, 'bold'), bg='#f44336', fg='black', 
                  padx=15, pady=8, command=lambda: self.make_bid(0, True)).pack(pady=8)
         
         num_frame = tk.Frame(bid_frame, bg='white')
         num_frame.pack(pady=8)
         for i in range(1, 14):
             tk.Button(num_frame, text=str(i), font=('Arial', 12, 'bold'), 
-                     bg='#2196f3', fg='white', width=3,
+                     bg='#2196f3', fg='black', width=3,
                      command=lambda b=i: self.make_bid(b, False)).grid(
                          row=(i-1)//7, column=(i-1)%7, padx=3, pady=3)
         
@@ -221,8 +221,8 @@ class SpadesGame:
                 font=('Arial', 10, 'bold'), bg='#1a3a0f', fg='black').pack(pady=3)
         nc = tk.Frame(north, bg='#1a3a0f')
         nc.pack()
-        for _ in self.hands[2]:
-            tk.Label(nc, text="🂠", font=('Arial', 16), bg='#1a3a0f', fg='black').pack(side=tk.LEFT)
+        for card in self.hands[2]:
+            self.make_card(nc, card, clickable=False).pack(side=tk.LEFT, padx=1)
         
         # Middle section
         mid = tk.Frame(self.game_frame, bg='#2d5016')
@@ -231,10 +231,10 @@ class SpadesGame:
         # West player
         west = tk.Frame(mid, bg='#1a3a0f', relief=tk.RAISED, bd=2)
         west.pack(side=tk.LEFT, padx=5, anchor=tk.W)
-        tk.Label(west, text=f"West\n{self.bid_text(3)}\n{self.tricks[3]}", 
+        tk.Label(west, text=f"West\n{self.bid_text(3)}\nWon: {self.tricks[3]}", 
                 font=('Arial', 9, 'bold'), bg='#1a3a0f', fg='black').pack(pady=3)
-        for _ in self.hands[3]:
-            tk.Label(west, text="🂠", font=('Arial', 14), bg='#1a3a0f', fg='black').pack()
+        for card in self.hands[3]:
+            self.make_card(west, card, clickable=False).pack(pady=1)
         
         # Center trick area
         center = tk.Frame(mid, bg='#1a5016', relief=tk.SUNKEN, bd=4, width=350, height=250)
@@ -255,10 +255,10 @@ class SpadesGame:
         # East player
         east = tk.Frame(mid, bg='#1a3a0f', relief=tk.RAISED, bd=2)
         east.pack(side=tk.LEFT, padx=5, anchor=tk.E)
-        tk.Label(east, text=f"East\n{self.bid_text(1)}\n{self.tricks[1]}", 
+        tk.Label(east, text=f"East\n{self.bid_text(1)}\nWon: {self.tricks[1]}", 
                 font=('Arial', 9, 'bold'), bg='#1a3a0f', fg='black').pack(pady=3)
-        for _ in self.hands[1]:
-            tk.Label(east, text="🂠", font=('Arial', 14), bg='#1a3a0f', fg='black').pack()
+        for card in self.hands[1]:
+            self.make_card(east, card, clickable=False).pack(pady=1)
         
         # Your hand
         hand = tk.Frame(self.game_frame, bg='#2d5016')
