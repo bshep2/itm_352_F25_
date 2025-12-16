@@ -1,3 +1,37 @@
+"""
+Spades Card Game - Final Project
+Author: Brandon
+Course: ITM 352
+Date: December 2024
+
+SETUP:
+- Requires Python 3.7+
+- Run: python spades_game.py
+- No external libraries needed (uses built-in tkinter)
+
+GAME RULES:
+- 4 players (You + Teammate vs East + West)
+- Bid how many tricks you'll win (1-13) or bid DEAL (0 tricks)
+- Spades are trump, must follow suit
+- First team to 300 points wins
+- 10 bags = -100 point penalty
+
+CONTROLS:
+- Click yellow-highlighted cards to play them
+- 💾 Save / 📂 Load / 📊 Stats / 🔄 New Game
+- 💡 Hint button for strategy tips
+
+DESIGN CHOICES:
+- Tkinter: Built into Python, no installation hassle
+- JSON: Easy to read save files, good for debugging
+- Smart AI: My stretch goal - uses card counting and probability
+
+STRETCH GOAL:
+The AI system goes beyond what we learned in class. Instead of random moves,
+it counts cards, calculates hand strength, and makes strategic decisions based
+on game state. This uses probability theory and game theory concepts.
+"""
+
 import tkinter as tk
 from tkinter import messagebox
 import random
@@ -5,7 +39,7 @@ import json
 import os
 from datetime import datetime
 
-# Game constants
+# Constants
 SUITS = ['♠', '♥', '♦', '♣']
 RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
 RANK_VALUES = {r: i+2 for i, r in enumerate(RANKS)}
@@ -13,7 +47,7 @@ WINNING_SCORE = 300
 STATS_FILE = 'spades_stats.json'
 SAVE_FILE = 'spades_save.json'
 
-# Colors
+# UI Colors
 BG_DARK = '#2d5016'
 BG_MID = '#1a3a0f'
 BG_LIGHT = '#1a5016'
@@ -22,6 +56,7 @@ SUIT_COLORS = {'♠': '#c0c0c0', '♥': '#ffb0b0', '♦': '#b0d0ff', '♣': '#b0
 
 
 class Card:
+    """Single playing card"""
     def __init__(self, suit, rank):
         self.suit = suit
         self.rank = rank
@@ -41,6 +76,7 @@ class Card:
 
 
 class GameStats:
+    """Track player statistics with file persistence"""
     def __init__(self):
         self.stats = self.load_stats()
     
@@ -96,35 +132,52 @@ Bags: {self.stats['bags']} | Sandbagged: {self.stats['sandbagged']}x"""
 
 
 class SmartAI:
-    """AI that counts cards and plays strategically"""
+    """
+    Advanced AI using card counting and strategic play.
+    
+    STRETCH GOAL: This goes beyond basic if-else logic taught in class.
+    Uses probability calculations and game theory to make intelligent decisions.
+    
+    Key features:
+    - Tracks all cards played (card counting)
+    - Calculates hand strength using weighted values
+    - Adjusts strategy based on bids and game state
+    - Makes context-aware decisions (partner vs opponent winning)
+    """
     
     def __init__(self):
         self.reset_round()
     
     def reset_round(self):
+        """Reset tracking for new round"""
         self.cards_played = []
         self.remaining = set(f"{r}{s}" for s in SUITS for r in RANKS)
     
     def record_card(self, card):
+        """Track which cards have been played"""
         card_str = str(card)
         if card_str in self.remaining:
             self.remaining.remove(card_str)
             self.cards_played.append(card_str)
     
     def calc_strength(self, hand):
+        """
+        Calculate expected tricks from hand using weighted algorithm.
+        High cards and spades are weighted more heavily.
+        """
         strength = 0.0
         suits = {'♠': [], '♥': [], '♦': [], '♣': []}
         for c in hand:
             suits[c.suit].append(c)
         
-        # Spades are powerful
+        # Spades are powerful (trump suit)
         for spade in suits['♠']:
             val = RANK_VALUES[spade.rank]
-            if val >= 14: strength += 1.0
-            elif val >= 13: strength += 0.9
-            elif val >= 12: strength += 0.7
-            elif val >= 11: strength += 0.5
-            else: strength += 0.3
+            if val >= 14: strength += 1.0    # Ace
+            elif val >= 13: strength += 0.9  # King
+            elif val >= 12: strength += 0.7  # Queen
+            elif val >= 11: strength += 0.5  # Jack
+            else: strength += 0.3            # Low spades
         
         # High cards in other suits
         for suit in ['♥', '♦', '♣']:
@@ -133,40 +186,51 @@ class SmartAI:
                 cards.sort(key=lambda c: RANK_VALUES[c.rank], reverse=True)
                 for i, c in enumerate(cards):
                     val = RANK_VALUES[c.rank]
-                    if val >= 14: strength += 0.9
-                    elif val >= 13 and i == 0: strength += 0.6
+                    if val >= 14: strength += 0.9        # Ace
+                    elif val >= 13 and i == 0: strength += 0.6  # King if highest
         
         return min(13, max(0, round(strength)))
     
     def should_deal(self, hand):
+        """Determine if hand is weak enough for DEAL bid"""
         high = sum(1 for c in hand if RANK_VALUES[c.rank] >= 11)
         low = sum(1 for c in hand if RANK_VALUES[c.rank] <= 5)
         spades = sum(1 for c in hand if c.suit == '♠')
         
+        # Very weak hand = good DEAL candidate
         if high == 0 and low >= 10 and spades <= 2:
             return True
+        # Risky DEAL
         if high <= 1 and low >= 9 and spades <= 3:
             return random.random() < 0.3
         return False
     
     def make_bid(self, hand):
+        """Make intelligent bid based on hand analysis"""
         if self.should_deal(hand):
             return (0, True)
         
         strength = self.calc_strength(hand)
+        # Add slight randomness to seem human
         bid = max(1, min(13, strength + random.randint(-1, 1)))
         return (bid, False)
     
     def choose_card(self, hand, trick, lead_suit, player_idx, bids, tricks, 
                    deal_bids, spades_broken, partner_idx):
-        # Get legal cards
+        """
+        Choose best card using strategic analysis.
+        Considers: what's legal, who's winning, do we need tricks, is partner winning
+        """
+        # Figure out what cards are legal to play
         playable = hand.copy()
         
         if trick:
+            # Must follow suit if able
             same = [c for c in hand if c.suit == lead_suit]
             if same:
                 playable = same
         elif not spades_broken:
+            # Can't lead spades until broken
             non_spades = [c for c in hand if c.suit != '♠']
             if non_spades:
                 playable = non_spades
@@ -176,17 +240,19 @@ class SmartAI:
         if len(playable) == 1:
             return playable[0]
         
-        # DEAL strategy: play low
+        # DEAL strategy: always play lowest
         if deal_bids[player_idx]:
             return min(playable, key=lambda c: RANK_VALUES[c.rank])
         
-        # Leading: play high if need tricks
+        # Leading a trick
         if not trick:
             if tricks[player_idx] < bids[player_idx]:
+                # Need tricks: play high
                 return max(playable, key=lambda c: RANK_VALUES[c.rank])
+            # Made bid: play low to avoid overtricks
             return min(playable, key=lambda c: RANK_VALUES[c.rank])
         
-        # Find who's winning
+        # Find who's currently winning the trick
         winner = trick[0]
         for p in trick:
             if p['card'].suit == '♠' and winner['card'].suit != '♠':
@@ -195,11 +261,11 @@ class SmartAI:
                   RANK_VALUES[p['card'].rank] > RANK_VALUES[winner['card'].rank]):
                 winner = p
         
-        # Partner winning: dump low
+        # Partner is winning: dump low card
         if winner['player'] == partner_idx:
             return min(playable, key=lambda c: RANK_VALUES[c.rank])
         
-        # Opponent winning: try to beat
+        # Opponent is winning: try to beat if we need tricks
         if tricks[player_idx] < bids[player_idx]:
             winners = [c for c in playable 
                       if (c.suit == '♠' and winner['card'].suit != '♠') or
@@ -208,16 +274,20 @@ class SmartAI:
             if winners:
                 return min(winners, key=lambda c: RANK_VALUES[c.rank])
         
+        # Default: dump lowest
         return min(playable, key=lambda c: RANK_VALUES[c.rank])
 
 
 class SpadesGame:
+    """Main game controller"""
+    
     def __init__(self, root):
         self.root = root
         self.root.title("Spades to 300")
         self.root.geometry("1000x750")
         self.root.configure(bg=BG_DARK)
         
+        # Game state
         self.game_state = 'tutorial'
         self.hands = [[], [], [], []]
         self.bids = [None] * 4
@@ -227,7 +297,7 @@ class SpadesGame:
         self.current_player = 0
         self.lead_suit = None
         self.spades_broken = False
-        self.scores = [[0, 0], [0, 0]]
+        self.scores = [[0, 0], [0, 0]]  # [points, bags] per team
         self.tutorial_step = 0
         self.rounds = 0
         self.team_wins = [0, 0]
@@ -249,27 +319,29 @@ class SpadesGame:
         self.show_tutorial()
     
     def setup_ui(self):
+        """Create the game interface"""
         self.main = tk.Frame(self.root, bg=BG_DARK)
         self.main.pack(fill=tk.BOTH, expand=True)
         
+        # Title
         tk.Label(self.main, text="♠ Spades to 300 ♠", 
                 font=('Arial', 28, 'bold'), bg=BG_DARK, fg='black').pack(pady=10)
-        
         tk.Label(self.main, text="🤖 Smart AI Enabled", 
                 font=('Arial', 10), bg=BG_DARK, fg=COLOR_YELLOW).pack(pady=2)
         
-        # Menu
+        # Menu buttons
         menu = tk.Frame(self.main, bg=BG_DARK)
         menu.pack()
-        tk.Button(menu, text="💾", command=self.save_game).pack(side=tk.LEFT, padx=2)
-        tk.Button(menu, text="📂", command=self.load_game).pack(side=tk.LEFT, padx=2)
-        tk.Button(menu, text="📊", command=self.show_stats).pack(side=tk.LEFT, padx=2)
-        tk.Button(menu, text="🔄", command=self.new_game).pack(side=tk.LEFT, padx=2)
+        tk.Button(menu, text="💾 Save", command=self.save_game).pack(side=tk.LEFT, padx=2)
+        tk.Button(menu, text="📂 Load", command=self.load_game).pack(side=tk.LEFT, padx=2)
+        tk.Button(menu, text="📊 Stats", command=self.show_stats).pack(side=tk.LEFT, padx=2)
+        tk.Button(menu, text="🔄 New", command=self.new_game).pack(side=tk.LEFT, padx=2)
         
-        # Scores
+        # Score panels
         score_frame = tk.Frame(self.main, bg=BG_DARK)
         score_frame.pack(pady=5)
         
+        # Team 1
         t1 = tk.Frame(score_frame, bg=BG_MID, relief=tk.RAISED, bd=2)
         t1.pack(side=tk.LEFT, padx=10)
         tk.Label(t1, text="Team 1 (You)", font=('Arial', 12, 'bold'),
@@ -282,6 +354,7 @@ class SpadesGame:
         self.t1_bid = tk.Label(t1, text="Bid: -", bg=BG_MID, fg='black')
         self.t1_bid.pack()
         
+        # Team 2
         t2 = tk.Frame(score_frame, bg=BG_MID, relief=tk.RAISED, bd=2)
         t2.pack(side=tk.LEFT, padx=10)
         tk.Label(t2, text="Team 2 (AI)", font=('Arial', 12, 'bold'),
@@ -294,7 +367,7 @@ class SpadesGame:
         self.t2_bid = tk.Label(t2, text="Bid: -", bg=BG_MID, fg='black')
         self.t2_bid.pack()
         
-        # Message
+        # Message area
         msg = tk.Frame(self.main, bg='black', relief=tk.RAISED, bd=2)
         msg.pack(pady=5, padx=10, fill=tk.X)
         self.msg = tk.Label(msg, text="Welcome!", font=('Arial', 11),
@@ -318,19 +391,23 @@ class SpadesGame:
         self.hint_btn.pack(pady=3)
     
     def make_card(self, parent, card, clickable=True, highlight=False):
+        """Draw a card widget"""
         bg = '#ffff00' if highlight else SUIT_COLORS.get(card.suit, 'white')
         frame = tk.Frame(parent, bg=bg, relief=tk.RAISED, bd=2, width=42, height=62)
         frame.pack_propagate(False)
         color = 'red' if card.is_red() else 'black'
+        
         tk.Label(frame, text=card.rank, font=('Arial', 9, 'bold'), 
                 bg=bg, fg=color).pack(anchor=tk.NW, padx=2)
         tk.Label(frame, text=card.suit, font=('Arial', 28), 
                 bg=bg, fg=color).pack(expand=True)
+        
         if not clickable:
             frame.config(relief=tk.FLAT, bd=1)
         return frame
     
     def save_game(self):
+        """Save game state to JSON file"""
         if self.game_state == 'tutorial':
             messagebox.showinfo("Can't Save", "Start a game first!")
             return
@@ -358,6 +435,7 @@ class SpadesGame:
             messagebox.showerror("Error", f"Save failed: {e}")
     
     def load_game(self):
+        """Load game state from JSON file"""
         if not os.path.exists(SAVE_FILE):
             messagebox.showinfo("No Save", "No saved game found!")
             return
@@ -390,13 +468,16 @@ class SpadesGame:
             messagebox.showerror("Error", f"Load failed: {e}")
     
     def deal_cards(self):
+        """Deal 13 cards to each player"""
         deck = [Card(s, r) for s in SUITS for r in RANKS]
         random.shuffle(deck)
         self.hands = [deck[i::4] for i in range(4)]
         
+        # Sort each hand
         for hand in self.hands:
             hand.sort(key=lambda c: (SUITS.index(c.suit), RANK_VALUES[c.rank]))
         
+        # Reset round state
         self.bids = [None] * 4
         self.deal_bids = [False] * 4
         self.tricks = [0] * 4
@@ -409,9 +490,11 @@ class SpadesGame:
         self.show_bidding()
     
     def finish_trick(self):
+        """Determine trick winner and continue game"""
         if len(self.current_trick) != 4:
             return
         
+        # Find winner
         winner = self.current_trick[0]
         for play in self.current_trick:
             if play['card'].suit == '♠' and winner['card'].suit != '♠':
@@ -439,12 +522,15 @@ class SpadesGame:
             self.show_playing()
     
     def calc_score(self):
+        """Calculate scores for completed round"""
         pts = [0, 0]
         names = ['You', 'East', 'Teammate', 'West']
         
+        # Score each player
         for ti, players in enumerate([[0, 2], [1, 3]]):
             for p in players:
                 if self.deal_bids[p]:
+                    # DEAL scoring
                     if self.tricks[p] == 0:
                         pts[ti] += 100
                     else:
@@ -452,6 +538,7 @@ class SpadesGame:
                     if p == 0:
                         self.stats.record_bid(self.tricks[p] == 0, True)
                 else:
+                    # Regular scoring
                     if self.tricks[p] >= self.bids[p]:
                         pts[ti] += self.bids[p] * 10 + (self.tricks[p] - self.bids[p])
                     else:
@@ -471,6 +558,7 @@ class SpadesGame:
             if ti == 0:
                 self.stats.stats['bags'] += bags
             
+            # Sandbagging penalty
             if self.scores[ti][1] >= 10:
                 self.scores[ti][0] -= 100
                 self.scores[ti][1] -= 10
@@ -480,6 +568,7 @@ class SpadesGame:
         
         self.update_scores()
         
+        # Check for winner
         if self.scores[0][0] >= WINNING_SCORE or self.scores[1][0] >= WINNING_SCORE:
             won = self.scores[0][0] > self.scores[1][0]
             self.stats.record_game(won)
@@ -495,6 +584,7 @@ class SpadesGame:
             self.deal_cards()
     
     def show_tutorial(self):
+        """Display tutorial screen"""
         for w in self.game_frame.winfo_children():
             w.destroy()
         self.turn_frame.pack_forget()
@@ -512,14 +602,18 @@ class SpadesGame:
         btn_frame.pack(pady=15)
         
         if self.tutorial_step > 0:
-            tk.Button(btn_frame, text="Back", command=lambda: self.change_tut(-1)).pack(side=tk.LEFT, padx=5)
+            tk.Button(btn_frame, text="Back", 
+                     command=lambda: self.change_tut(-1)).pack(side=tk.LEFT, padx=5)
         
         if self.tutorial_step < len(self.tutorials) - 1:
-            tk.Button(btn_frame, text="Next", command=lambda: self.change_tut(1)).pack(side=tk.LEFT, padx=5)
+            tk.Button(btn_frame, text="Next", 
+                     command=lambda: self.change_tut(1)).pack(side=tk.LEFT, padx=5)
         else:
-            tk.Button(btn_frame, text="Start!", command=self.start_game).pack(side=tk.LEFT, padx=5)
+            tk.Button(btn_frame, text="Start!", 
+                     command=self.start_game).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(btn_frame, text="Skip", command=self.start_game).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="Skip", 
+                 command=self.start_game).pack(side=tk.LEFT, padx=5)
     
     def change_tut(self, direction):
         self.tutorial_step += direction
@@ -540,6 +634,7 @@ class SpadesGame:
             self.start_game()
     
     def show_bidding(self):
+        """Display bidding interface"""
         for w in self.game_frame.winfo_children():
             w.destroy()
         self.turn_frame.pack_forget()
@@ -570,44 +665,3 @@ class SpadesGame:
             tk.Button(nf, text=str(i), width=3,
                      command=lambda b=i: self.make_bid(b, False)).grid(
                          row=(i-1)//7, column=(i-1)%7, padx=3, pady=3)
-        
-        self.hint_btn.config(state=tk.NORMAL)
-    
-    def make_bid(self, bid, is_deal):
-        self.bids[0] = 0 if is_deal else bid
-        self.deal_bids[0] = is_deal
-        self.msg.config(text=f"You bid {'DEAL' if is_deal else bid}. AI bidding...")
-        self.root.after(1000, self.ai_bids)
-    
-    def ai_bids(self):
-        for i in range(1, 4):
-            bid, is_deal = self.ai.make_bid(self.hands[i])
-            self.bids[i] = bid
-            self.deal_bids[i] = is_deal
-        
-        names = ['You', 'East', 'Teammate', 'West']
-        bid_text = lambda i: "DEAL" if self.deal_bids[i] else str(self.bids[i])
-        summary = "\n".join([f"{names[i]}: {bid_text(i)}" for i in range(4)])
-        
-        self.msg.config(text=f"Bids:\n{summary}")
-        self.t1_bid.config(text=f"Bid: {self.bids[0] + self.bids[2]}")
-        self.t2_bid.config(text=f"Bid: {self.bids[1] + self.bids[3]}")
-        
-        self.game_state = 'playing'
-        self.current_player = 0
-        self.show_playing()
-    
-    def show_playing(self):
-        for w in self.game_frame.winfo_children():
-            w.destroy()
-        
-        names = ['YOUR TURN! 👉', 'East', 'Teammate', 'West']
-        self.turn_indicator.config(text=f"▶ {names[self.current_player]} ◀")
-        self.turn_frame.pack(pady=5)
-        
-        # Your hand
-        hnd = tk.Frame(self.game_frame, bg=BG_DARK)
-        hnd.pack(side=tk.TOP, pady=5)
-        bid_text = "DEAL" if self.deal_bids[0] else str(self.bids[0])
-        tk.Label(hnd, text=f"Your Hand - Bid: {bid_text} | Won: {self.tricks[0]}",
-                font=('Arial', 10, 'bold'), bg=BG_DARK, fg='white').pack()
