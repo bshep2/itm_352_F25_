@@ -1,108 +1,54 @@
 {
-  "game_state": "bidding",
+  "game_state": "playing",
   "hands": [
     [
       {
         "suit": "\u2660",
-        "rank": "2"
+        "rank": "8"
       },
       {
         "suit": "\u2660",
-        "rank": "9"
-      },
-      {
-        "suit": "\u2660",
-        "rank": "10"
-      },
-      {
-        "suit": "\u2660",
-        "rank": "K"
+        "rank": "J"
       },
       {
         "suit": "\u2665",
-        "rank": "5"
-      },
-      {
-        "suit": "\u2665",
-        "rank": "6"
-      },
-      {
-        "suit": "\u2665",
-        "rank": "K"
-      },
-      {
-        "suit": "\u2666",
-        "rank": "7"
-      },
-      {
-        "suit": "\u2666",
-        "rank": "9"
-      },
-      {
-        "suit": "\u2666",
-        "rank": "Q"
-      },
-      {
-        "suit": "\u2663",
-        "rank": "2"
-      },
-      {
-        "suit": "\u2663",
-        "rank": "9"
-      },
-      {
-        "suit": "\u2663",
-        "rank": "10"
-      }
-    ],
-    [
-      {
-        "suit": "\u2660",
         "rank": "3"
       },
       {
-        "suit": "\u2660",
-        "rank": "4"
-      },
-      {
-        "suit": "\u2660",
-        "rank": "6"
-      },
-      {
-        "suit": "\u2660",
-        "rank": "7"
-      },
-      {
-        "suit": "\u2660",
-        "rank": "J"
-      },
-      {
-        "suit": "\u2660",
-        "rank": "A"
-      },
-      {
-        "suit": "\u2665",
-        "rank": "2"
-      },
-      {
         "suit": "\u2665",
         "rank": "4"
       },
       {
-        "suit": "\u2666",
-        "rank": "2"
-      },
-      {
-        "suit": "\u2666",
-        "rank": "J"
-      },
-      {
-        "suit": "\u2663",
+        "suit": "\u2665",
         "rank": "5"
       },
       {
+        "suit": "\u2665",
+        "rank": "9"
+      },
+      {
+        "suit": "\u2665",
+        "rank": "10"
+      },
+      {
+        "suit": "\u2665",
+        "rank": "K"
+      },
+      {
+        "suit": "\u2666",
+        "rank": "3"
+      },
+      {
+        "suit": "\u2666",
+        "rank": "J"
+      },
+      {
+        "suit": "\u2666",
+        "rank": "A"
+      },
+      {
         "suit": "\u2663",
-        "rank": "8"
+        "rank": "9"
       },
       {
         "suit": "\u2663",
@@ -112,43 +58,39 @@
     [
       {
         "suit": "\u2660",
-        "rank": "Q"
+        "rank": "6"
+      },
+      {
+        "suit": "\u2660",
+        "rank": "10"
       },
       {
         "suit": "\u2665",
-        "rank": "3"
+        "rank": "7"
+      },
+      {
+        "suit": "\u2665",
+        "rank": "8"
       },
       {
         "suit": "\u2665",
         "rank": "J"
       },
       {
-        "suit": "\u2665",
-        "rank": "Q"
-      },
-      {
-        "suit": "\u2665",
-        "rank": "A"
+        "suit": "\u2666",
+        "rank": "2"
       },
       {
         "suit": "\u2666",
-        "rank": "4"
-      },
-      {
-        "suit": "\u2666",
-        "rank": "5"
+        "rank": "6"
       },
       {
         "suit": "\u2666",
         "rank": "8"
       },
       {
-        "suit": "\u2666",
-        "rank": "K"
-      },
-      {
-        "suit": "\u2666",
-        "rank": "A"
+        "suit": "\u2663",
+        "rank": "3"
       },
       {
         "suit": "\u2663",
@@ -160,7 +102,11 @@
       },
       {
         "suit": "\u2663",
-        "rank": "A"
+        "rank": "10"
+      },
+      {
+        "suit": "\u2663",
+        "rank": "K"
       }
     ],
     [
@@ -170,39 +116,39 @@
       },
       {
         "suit": "\u2660",
-        "rank": "8"
-      },
-      {
-        "suit": "\u2665",
-        "rank": "7"
-      },
-      {
-        "suit": "\u2665",
-        "rank": "8"
-      },
-      {
-        "suit": "\u2665",
         "rank": "9"
       },
       {
         "suit": "\u2665",
-        "rank": "10"
+        "rank": "Q"
+      },
+      {
+        "suit": "\u2665",
+        "rank": "A"
       },
       {
         "suit": "\u2666",
-        "rank": "3"
+        "rank": "4"
       },
       {
         "suit": "\u2666",
-        "rank": "6"
+        "rank": "5"
       },
       {
         "suit": "\u2666",
-        "rank": "10"
+        "rank": "7"
+      },
+      {
+        "suit": "\u2666",
+        "rank": "9"
       },
       {
         "suit": "\u2663",
-        "rank": "3"
+        "rank": "2"
+      },
+      {
+        "suit": "\u2663",
+        "rank": "5"
       },
       {
         "suit": "\u2663",
@@ -214,7 +160,61 @@
       },
       {
         "suit": "\u2663",
+        "rank": "A"
+      }
+    ],
+    [
+      {
+        "suit": "\u2660",
+        "rank": "2"
+      },
+      {
+        "suit": "\u2660",
+        "rank": "3"
+      },
+      {
+        "suit": "\u2660",
+        "rank": "4"
+      },
+      {
+        "suit": "\u2660",
+        "rank": "7"
+      },
+      {
+        "suit": "\u2660",
+        "rank": "Q"
+      },
+      {
+        "suit": "\u2660",
         "rank": "K"
+      },
+      {
+        "suit": "\u2660",
+        "rank": "A"
+      },
+      {
+        "suit": "\u2665",
+        "rank": "2"
+      },
+      {
+        "suit": "\u2665",
+        "rank": "6"
+      },
+      {
+        "suit": "\u2666",
+        "rank": "10"
+      },
+      {
+        "suit": "\u2666",
+        "rank": "Q"
+      },
+      {
+        "suit": "\u2666",
+        "rank": "K"
+      },
+      {
+        "suit": "\u2663",
+        "rank": "8"
       }
     ]
   ],
@@ -237,18 +237,23 @@
     0
   ],
   "current_trick": [],
-  "current_player": 0,
+  "current_player": 2,
   "lead_suit": null,
   "spades_broken": false,
   "scores": [
     [
-      -59,
-      0
+      35,
+      5
     ],
     [
-      1,
-      0
+      41,
+      1
     ]
   ],
-  "rounds": 3
+  "rounds": 2,
+  "team_wins": [
+    0,
+    1
+  ],
+  "saved_at": "2025-12-13 20:35"
 }

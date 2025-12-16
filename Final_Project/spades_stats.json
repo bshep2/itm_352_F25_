@@ -3,8 +3,8 @@
   "games_won": 0,
   "bids_made": 6,
   "bids_missed": 1,
-  "deals_successful": 0,
-  "deals_failed": 1,
-  "bags": 10,
+  "deals_successful": 1,
+  "deals_failed": 2,
+  "bags": 4,
   "sandbagged": 0
 }

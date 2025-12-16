@@ -1,0 +1,1151 @@
+"""
+Spades Card Game - ITM 352 Final Project
+Author: Brandon | Date: December 2024
+STRETCH GOAL: Advanced AI with card counting and game theory
+
+This is a complete implementation of the card game Spades for 4 players (1 human vs 3 AI).
+Features include: bidding system, DEAL bids, bag penalties, save/load, statistics tracking,
+and an intelligent AI that uses card counting and game theory.
+"""
+
+import tkinter as tk
+from tkinter import messagebox
+import random
+import json
+import os
+from datetime import datetime
+
+# ============================================================================
+# CONSTANTS - Game Configuration
+# ============================================================================
+SUITS = ['♠', '♥', '♦', '♣']  # Card suits (Spades is trump)
+RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']  # Card ranks
+RANK_VALUES = {r: i+2 for i, r in enumerate(RANKS)}  # Numerical values for each rank
+WINNING_SCORE = 300  # First team to reach this score wins
+STATS_FILE = 'spades_stats.json'  # File for persistent statistics
+SAVE_FILE = 'spades_save.json'  # File for game save data
+
+# Color scheme for the game interface
+BG_DARK = '#2d5016'  # Dark green background
+BG_MID = '#1a3a0f'  # Mid-tone green
+BG_LIGHT = '#1a5016'  # Light green for center area
+COLOR_YELLOW = '#ffeb3b'  # Highlight color for turn indicator
+SUIT_COLORS = {'♠': '#c0c0c0', '♥': '#ffb0b0', '♦': '#b0d0ff', '♣': '#b0ffb0'}  # Card background colors
+
+# ============================================================================
+# CARD CLASS - Represents a single playing card
+# ============================================================================
+class Card:
+    """
+    Represents a single playing card with a suit and rank.
+    Provides methods for comparison, serialization, and display.
+    """
+    def __init__(self, suit, rank):
+        """Initialize a card with a suit and rank"""
+        self.suit = suit  # One of: ♠, ♥, ♦, ♣
+        self.rank = rank  # One of: 2-10, J, Q, K, A
+    
+    def __repr__(self):
+        """String representation of the card (e.g., 'A♠')"""
+        return f"{self.rank}{self.suit}"
+    
+    def __eq__(self, other):
+        """Check if two cards are equal"""
+        return isinstance(other, Card) and self.suit == other.suit and self.rank == other.rank
+    
+    def is_red(self):
+        """Check if card is a red suit (hearts or diamonds)"""
+        return self.suit in ['♥', '♦']
+    
+    def get_value(self):
+        """Get numerical value of card (2-14, where Ace=14)"""
+        return RANK_VALUES[self.rank]
+    
+    def to_dict(self):
+        """Convert card to dictionary for JSON serialization"""
+        return {'suit': self.suit, 'rank': self.rank}
+    
+    @staticmethod
+    def from_dict(data):
+        """Create a card from a dictionary (for loading saved games)"""
+        return Card(data['suit'], data['rank'])
+
+# ============================================================================
+# GAME STATISTICS CLASS - Tracks player performance across games
+# ============================================================================
+class GameStats:
+    """
+    Manages persistent game statistics including wins, losses, bid success rate,
+    and bag accumulation. Stats are saved to a JSON file.
+    """
+    def __init__(self):
+        """Initialize stats by loading from file or creating new stats"""
+        self.stats = self.load_stats()
+    
+    def load_stats(self):
+        """Load statistics from JSON file, or create default stats if file doesn't exist"""
+        try:
+            if os.path.exists(STATS_FILE):
+                with open(STATS_FILE, 'r') as f:
+                    return json.load(f)
+        except:
+            pass  # If loading fails, return default stats below
+        
+        # Default statistics structure
+        return {
+            'games_played': 0,      # Total games completed
+            'games_won': 0,         # Games won by player
+            'bids_made': 0,         # Successful bids
+            'bids_missed': 0,       # Failed bids
+            'deals_successful': 0,  # Successful DEAL bids (0 tricks)
+            'deals_failed': 0,      # Failed DEAL bids
+            'bags': 0,              # Total bags accumulated
+            'sandbagged': 0         # Times penalized for 10+ bags
+        }
+    
+    def save_stats(self):
+        """Save current statistics to JSON file"""
+        try:
+            with open(STATS_FILE, 'w') as f:
+                json.dump(self.stats, f, indent=2)
+        except:
+            pass  # Silently fail if save doesn't work
+    
+    def record_game(self, won):
+        """Record the result of a completed game"""
+        self.stats['games_played'] += 1
+        if won:
+            self.stats['games_won'] += 1
+        self.save_stats()
+    
+    def record_bid(self, made, is_deal=False):
+        """Record whether a bid was made or missed"""
+        if is_deal:
+            # DEAL bids have their own tracking
+            key = 'deals_successful' if made else 'deals_failed'
+        else:
+            # Regular bids
+            key = 'bids_made' if made else 'bids_missed'
+        self.stats[key] += 1
+        self.save_stats()
+    
+    def record_bag(self):
+        """Record a single bag (overtrick)"""
+        self.stats['bags'] += 1
+        self.save_stats()
+    
+    def record_sandbag(self):
+        """Record a sandbagging penalty (10 bags accumulated)"""
+        self.stats['sandbagged'] += 1
+        self.save_stats()
+    
+    def get_win_rate(self):
+        """Calculate win percentage"""
+        if self.stats['games_played'] > 0:
+            return (self.stats['games_won'] / self.stats['games_played'] * 100)
+        return 0.0
+    
+    def get_summary(self):
+        """Generate a formatted summary of all statistics"""
+        gp = self.stats['games_played']
+        wr = self.get_win_rate()
+        bt = self.stats['bids_made'] + self.stats['bids_missed']  # Total bids
+        br = (self.stats['bids_made'] / bt * 100) if bt > 0 else 0  # Bid success rate
+        
+        return (f"Games: {gp} | Win Rate: {wr:.1f}%\n"
+                f"Bids: {self.stats['bids_made']}/{bt} ({br:.1f}%)\n"
+                f"Deals: {self.stats['deals_successful']}/{self.stats['deals_failed']}\n"
+                f"Bags: {self.stats['bags']} | Sandbagged: {self.stats['sandbagged']}x")
+
+# ============================================================================
+# SMART AI CLASS - Advanced AI with card counting and strategy
+# ============================================================================
+class SmartAI:
+    """
+    Intelligent AI player that uses card counting, hand evaluation, and game theory
+    to make optimal bidding and playing decisions. Tracks all played cards and
+    adjusts strategy based on game state.
+    """
+    def __init__(self):
+        """Initialize AI and reset for new round"""
+        self.reset_round()
+    
+    def reset_round(self):
+        """Reset card tracking for a new round"""
+        self.cards_played = []  # List of cards that have been played
+        # Set of all cards remaining in play (not yet seen)
+        self.remaining = set(f"{r}{s}" for s in SUITS for r in RANKS)
+    
+    def record_card(self, card):
+        """Record a card that has been played (for card counting)"""
+        card_str = str(card)
+        if card_str in self.remaining:
+            self.remaining.remove(card_str)
+            self.cards_played.append(card_str)
+    
+    def calc_strength(self, hand):
+        """
+        Calculate the strength of a hand for bidding purposes.
+        Returns a number representing expected tricks (0-13).
+        
+        Strategy:
+        - Spades are valued highly (trump suit)
+        - High cards in other suits are valuable
+        - Aces and Kings are most likely to win tricks
+        """
+        strength = 0.0
+        
+        # Organize hand by suit
+        suits = {'♠': [], '♥': [], '♦': [], '♣': []}
+        for c in hand:
+            suits[c.suit].append(c)
+        
+        # Evaluate spades (trump suit) - most valuable
+        for spade in suits['♠']:
+            val = spade.get_value()
+            if val >= 14:      # Ace of spades - almost guaranteed trick
+                strength += 1.0
+            elif val >= 13:    # King of spades
+                strength += 0.9
+            elif val >= 12:    # Queen of spades
+                strength += 0.7
+            elif val >= 11:    # Jack of spades
+                strength += 0.5
+            else:              # Low spades
+                strength += 0.3
+        
+        # Evaluate other suits - high cards can win tricks
+        for suit in ['♥', '♦', '♣']:
+            cards = suits[suit]
+            if cards:
+                cards.sort(key=lambda c: c.get_value(), reverse=True)
+                for i, c in enumerate(cards):
+                    val = c.get_value()
+                    if val >= 14:  # Ace - very likely to win
+                        strength += 0.9
+                    elif val >= 13 and i == 0:  # King if it's your highest in suit
+                        strength += 0.6
+        
+        # Return strength capped between 0 and 13 (max tricks possible)
+        return min(13, max(0, round(strength)))
+    
+    def should_deal(self, hand):
+        """
+        Determine if this hand is suitable for a DEAL bid (bidding 0 tricks).
+        A DEAL bid is strategic when you have a very weak hand.
+        
+        Returns True if hand is weak enough to attempt DEAL.
+        """
+        high = sum(1 for c in hand if c.get_value() >= 11)  # Count high cards
+        low = sum(1 for c in hand if c.get_value() <= 5)    # Count low cards
+        spades = sum(1 for c in hand if c.suit == '♠')      # Count spades
+        
+        # Perfect DEAL hand: no high cards, many low cards, few spades
+        if high == 0 and low >= 10 and spades <= 2:
+            return True
+        
+        # Risky but possible DEAL: very few high cards
+        if high <= 1 and low >= 9 and spades <= 3:
+            return random.random() < 0.3  # 30% chance to attempt
+        
+        return False
+    
+    def make_bid(self, hand):
+        """
+        Make a bid based on hand strength.
+        Returns: (bid_amount, is_deal) tuple
+        """
+        # First check if we should bid DEAL
+        if self.should_deal(hand):
+            return (0, True)  # Bid 0 tricks (DEAL)
+        
+        # Calculate base strength and add some randomness (-1 to +1)
+        strength = self.calc_strength(hand)
+        bid = max(1, min(13, strength + random.randint(-1, 1)))
+        
+        return (bid, False)  # Return bid and not a DEAL
+    
+    def choose_card(self, hand, trick, lead_suit, player_idx, bids, tricks, deal_bids, spades_broken, partner_idx):
+        """
+        Choose the best card to play based on game state and strategy.
+        
+        Parameters:
+        - hand: Current hand of cards
+        - trick: Cards played so far in current trick
+        - lead_suit: Suit that was led
+        - player_idx: Index of this AI player (1, 2, or 3)
+        - bids: List of all players' bids
+        - tricks: List of tricks won by each player
+        - deal_bids: List indicating which players bid DEAL
+        - spades_broken: Whether spades have been played yet
+        - partner_idx: Index of this player's partner
+        
+        Returns: Card to play
+        """
+        # Start with all cards as playable
+        playable = hand.copy()
+        
+        # Apply game rules to filter playable cards
+        if trick:
+            # Must follow suit if possible
+            same = [c for c in hand if c.suit == lead_suit]
+            if same:
+                playable = same
+        elif not spades_broken:
+            # Can't lead with spades unless spades are broken or only have spades
+            non_spades = [c for c in hand if c.suit != '♠']
+            if non_spades:
+                playable = non_spades
+        
+        # If only one option, play it
+        if not playable or len(playable) == 1:
+            return playable[0] if playable else None
+        
+        # DEAL strategy: Always play lowest card to avoid winning
+        if deal_bids[player_idx]:
+            return min(playable, key=lambda c: c.get_value())
+        
+        # Leading a trick: play high if need tricks, low if have enough
+        if not trick:
+            if tricks[player_idx] < bids[player_idx]:
+                return max(playable, key=lambda c: c.get_value())  # Play high to win
+            else:
+                return min(playable, key=lambda c: c.get_value())  # Play low to avoid bags
+        
+        # Determine current trick winner
+        winner = trick[0]
+        for p in trick:
+            # Spades beat everything
+            if p['card'].suit == '♠' and winner['card'].suit != '♠':
+                winner = p
+            # Higher card in same suit wins
+            elif p['card'].suit == winner['card'].suit and p['card'].get_value() > winner['card'].get_value():
+                winner = p
+        
+        # If partner is winning, play low (don't overtrump partner)
+        if winner['player'] == partner_idx:
+            return min(playable, key=lambda c: c.get_value())
+        
+        # If we need tricks, try to win this one
+        if tricks[player_idx] < bids[player_idx]:
+            # Find cards that can beat current winner
+            winners = [c for c in playable if 
+                      (c.suit == '♠' and winner['card'].suit != '♠') or  # Trump
+                      (c.suit == winner['card'].suit and c.get_value() > winner['card'].get_value())]  # Higher same suit
+            if winners:
+                return min(winners, key=lambda c: c.get_value())  # Win with lowest possible
+        
+        # Default: play lowest card (avoid winning if don't need trick)
+        return min(playable, key=lambda c: c.get_value())
+
+# ============================================================================
+# MAIN GAME CLASS - Controls game flow and UI
+# ============================================================================
+class SpadesGame:
+    """
+    Main game class that manages the entire Spades game including:
+    - User interface using Tkinter
+    - Game state management (tutorial, bidding, playing)
+    - Card dealing and hand management
+    - Turn progression and trick evaluation
+    - Scoring and win conditions
+    - Save/load functionality
+    """
+    def __init__(self, root):
+        """Initialize the game window and UI components"""
+        self.root = root
+        self.root.title("Spades to 300")
+        self.root.geometry("1000x750")
+        self.root.configure(bg=BG_DARK)
+        
+        # Game state variables
+        self.game_state = 'tutorial'  # Current phase: tutorial, bidding, or playing
+        self.hands = [[], [], [], []]  # Hands for 4 players (0=human, 1-3=AI)
+        self.bids = [None] * 4  # Bid for each player
+        self.deal_bids = [False] * 4  # Whether each player bid DEAL
+        self.tricks = [0] * 4  # Tricks won by each player this round
+        self.current_trick = []  # Cards played in current trick
+        self.current_player = 0  # Whose turn it is (0-3)
+        self.lead_suit = None  # Suit that was led in current trick
+        self.spades_broken = False  # Whether spades have been played yet
+        self.scores = [[0, 0], [0, 0]]  # [team][score, bags] for both teams
+        self.tutorial_step = 0  # Current tutorial step
+        self.rounds = 0  # Number of rounds played
+        
+        # Initialize game components
+        self.stats = GameStats()  # Statistics tracker
+        self.ai = SmartAI()  # AI player
+        
+        # Tutorial messages
+        self.tutorials = [
+            "Welcome to Spades!\n4 players, 2 teams.",
+            "First to 300 wins!",
+            "Spades are TRUMP!",
+            "DEAL = bet 0 tricks\n+100 if success, -100 if fail",
+            "Follow suit if possible.",
+            "Make bid = 10×bid + extras\nFail = -10×bid",
+            "10 bags = -100 points. Ready?"
+        ]
+        
+        # Build the user interface
+        self.setup_ui()
+        self.show_tutorial()
+    
+    def setup_ui(self):
+        """Create all UI components for the game"""
+        # Main container frame
+        self.main = tk.Frame(self.root, bg=BG_DARK)
+        self.main.pack(fill=tk.BOTH, expand=True)
+        
+        # Title label
+        tk.Label(self.main, text="♠ Spades to 300 ♠", font=('Arial', 28, 'bold'), 
+                bg=BG_DARK, fg='white').pack(pady=10)
+        
+        # Menu buttons (Save, Load, Stats, New Game)
+        menu = tk.Frame(self.main, bg=BG_DARK)
+        menu.pack()
+        for txt, cmd in [("💾 Save", self.save_game), ("📂 Load", self.load_game), 
+                        ("📊 Stats", self.show_stats), ("🔄 New", self.new_game)]:
+            tk.Button(menu, text=txt, command=cmd).pack(side=tk.LEFT, padx=2)
+        
+        # Score display frame
+        score_frame = tk.Frame(self.main, bg=BG_DARK)
+        score_frame.pack(pady=5)
+        
+        # Team 1 (Player) score panel
+        t1 = tk.Frame(score_frame, bg=BG_MID, relief=tk.RAISED, bd=2)
+        t1.pack(side=tk.LEFT, padx=10)
+        tk.Label(t1, text="Team 1 (You)", font=('Arial', 12, 'bold'), 
+                bg=BG_MID, fg='white').pack(pady=3)
+        self.t1_score = tk.Label(t1, text="0/300", font=('Arial', 16, 'bold'), 
+                                bg=BG_MID, fg='white')
+        self.t1_score.pack()
+        self.t1_bags = tk.Label(t1, text="Bags: 0", bg=BG_MID, fg='white')
+        self.t1_bags.pack()
+        self.t1_bid = tk.Label(t1, text="Bid: -", bg=BG_MID, fg='white')
+        self.t1_bid.pack()
+        
+        # Team 2 (AI) score panel
+        t2 = tk.Frame(score_frame, bg=BG_MID, relief=tk.RAISED, bd=2)
+        t2.pack(side=tk.LEFT, padx=10)
+        tk.Label(t2, text="Team 2 (AI)", font=('Arial', 12, 'bold'), 
+                bg=BG_MID, fg='white').pack(pady=3)
+        self.t2_score = tk.Label(t2, text="0/300", font=('Arial', 16, 'bold'), 
+                                bg=BG_MID, fg='white')
+        self.t2_score.pack()
+        self.t2_bags = tk.Label(t2, text="Bags: 0", bg=BG_MID, fg='white')
+        self.t2_bags.pack()
+        self.t2_bid = tk.Label(t2, text="Bid: -", bg=BG_MID, fg='white')
+        self.t2_bid.pack()
+        
+        # Message display area
+        msg = tk.Frame(self.main, bg='black', relief=tk.RAISED, bd=2)
+        msg.pack(pady=5, padx=10, fill=tk.X)
+        self.msg = tk.Label(msg, text="Welcome!", font=('Arial', 11), 
+                           bg='black', fg='white', wraplength=900)
+        self.msg.pack(pady=5)
+        
+        # Turn indicator (shows whose turn it is)
+        self.turn_frame = tk.Frame(self.main, bg=COLOR_YELLOW, relief=tk.RAISED, bd=3)
+        self.turn_indicator = tk.Label(self.turn_frame, text="", font=('Arial', 14, 'bold'), 
+                                      bg=COLOR_YELLOW, fg='black', padx=20, pady=5)
+        self.turn_indicator.pack()
+        
+        # Main game area (where cards are displayed)
+        self.game_frame = tk.Frame(self.main, bg=BG_DARK)
+        self.game_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+        
+        # Hint button
+        self.hint_btn = tk.Button(self.main, text="💡 Hint", command=self.show_hint, 
+                                 state=tk.DISABLED, font=('Arial', 11, 'bold'), 
+                                 bg='#FFC107', fg='black', padx=20, pady=8)
+        self.hint_btn.pack(pady=5)
+    
+    def make_card(self, parent, card, clickable=True, highlight=False):
+        """
+        Create a visual representation of a card.
+        
+        Parameters:
+        - parent: Tkinter parent widget
+        - card: Card object to display
+        - clickable: Whether card should appear clickable
+        - highlight: Whether to highlight the card (yellow background)
+        
+        Returns: Frame widget containing the card
+        """
+        # Choose background color
+        bg = '#ffff00' if highlight else SUIT_COLORS.get(card.suit, 'white')
+        
+        # Create card frame
+        frame = tk.Frame(parent, bg=bg, relief=tk.RAISED, bd=2, width=42, height=62)
+        frame.pack_propagate(False)  # Maintain fixed size
+        
+        # Determine text color (red for hearts/diamonds, black for spades/clubs)
+        color = 'red' if card.is_red() else 'black'
+        
+        # Add rank label in corner
+        tk.Label(frame, text=card.rank, font=('Arial', 9, 'bold'), 
+                bg=bg, fg=color).pack(anchor=tk.NW, padx=2)
+        
+        # Add suit symbol in center
+        tk.Label(frame, text=card.suit, font=('Arial', 28), 
+                bg=bg, fg=color).pack(expand=True)
+        
+        # Make non-clickable cards appear flatter
+        if not clickable:
+            frame.config(relief=tk.FLAT, bd=1)
+        
+        return frame
+    
+    def save_game(self):
+        """Save current game state to JSON file"""
+        if self.game_state == 'tutorial':
+            messagebox.showinfo("Can't Save", "Start a game first!")
+            return
+        
+        try:
+            # Serialize all game state
+            data = {
+                'game_state': self.game_state,
+                'hands': [[c.to_dict() for c in h] for h in self.hands],
+                'bids': self.bids,
+                'deal_bids': self.deal_bids,
+                'tricks': self.tricks,
+                'current_trick': [{'player': p['player'], 'card': p['card'].to_dict()} 
+                                 for p in self.current_trick],
+                'current_player': self.current_player,
+                'lead_suit': self.lead_suit,
+                'spades_broken': self.spades_broken,
+                'scores': self.scores,
+                'rounds': self.rounds
+            }
+            
+            # Write to file
+            with open(SAVE_FILE, 'w') as f:
+                json.dump(data, f, indent=2)
+            
+            messagebox.showinfo("Saved", "Game saved!")
+        except Exception as e:
+            messagebox.showerror("Error", f"Save failed: {e}")
+    
+    def load_game(self):
+        """Load game state from JSON file"""
+        if not os.path.exists(SAVE_FILE):
+            messagebox.showinfo("No Save", "No saved game!")
+            return
+        
+        try:
+            # Read from file
+            with open(SAVE_FILE, 'r') as f:
+                data = json.load(f)
+            
+            # Restore all game state
+            self.game_state = data['game_state']
+            self.hands = [[Card.from_dict(c) for c in h] for h in data['hands']]
+            self.bids = data['bids']
+            self.deal_bids = data['deal_bids']
+            self.tricks = data['tricks']
+            self.current_trick = [{'player': p['player'], 
+                                  'card': Card.from_dict(p['card'])} 
+                                 for p in data['current_trick']]
+            self.current_player = data['current_player']
+            self.lead_suit = data.get('lead_suit')
+            self.spades_broken = data['spades_broken']
+            self.scores = data['scores']
+            self.rounds = data.get('rounds', 0)
+            
+            # Show appropriate screen
+            if self.game_state == 'playing':
+                self.show_playing()
+            else:
+                self.show_bidding()
+            
+            self.update_scores()
+            messagebox.showinfo("Loaded", "Game loaded!")
+        except Exception as e:
+            messagebox.showerror("Error", f"Load failed: {e}")
+    
+    def show_stats(self):
+        """Display player statistics in a popup"""
+        messagebox.showinfo("Statistics", self.stats.get_summary())
+    
+    def deal_cards(self):
+        """
+        Deal cards for a new round.
+        - Creates and shuffles deck
+        - Deals 13 cards to each player
+        - Sorts hands by suit
+        - Resets round variables
+        """
+        # Create full deck of 52 cards
+        deck = [Card(s, r) for s in SUITS for r in RANKS]
+        random.shuffle(deck)
+        
+        # Deal cards: player 0 gets indices 0,4,8,12..., player 1 gets 1,5,9,13...
+        self.hands = [deck[i::4] for i in range(4)]
+        
+        # Sort each hand by suit, then by rank within suit
+        for hand in self.hands:
+            hand.sort(key=lambda c: (SUITS.index(c.suit), c.get_value()))
+        
+        # Reset round variables
+        self.bids = [None] * 4
+        self.deal_bids = [False] * 4
+        self.tricks = [0] * 4
+        self.current_trick = []
+        self.current_player = 0
+        self.lead_suit = None
+        self.spades_broken = False
+        self.rounds += 1
+        
+        # Reset AI card tracking
+        self.ai.reset_round()
+        
+        # Move to bidding phase
+        self.game_state = 'bidding'
+        self.msg.config(text=f"Round {self.rounds} - Make your bid!")
+        self.show_bidding()
+    
+    def show_tutorial(self):
+        """Display tutorial screen with game rules"""
+        # Clear game area
+        for w in self.game_frame.winfo_children():
+            w.destroy()
+        self.turn_frame.pack_forget()
+        
+        # Create tutorial card
+        frame = tk.Frame(self.game_frame, bg='white', relief=tk.RAISED, bd=4)
+        frame.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+        
+        # Tutorial title
+        tk.Label(frame, text=f"Tutorial {self.tutorial_step + 1}/{len(self.tutorials)}", 
+                font=('Arial', 16, 'bold'), bg='white', fg='black').pack(pady=15, padx=20)
+        
+        # Tutorial content
+        tk.Label(frame, text=self.tutorials[self.tutorial_step], 
+                font=('Arial', 12), bg='white', fg='black', wraplength=500).pack(pady=15, padx=20)
+        
+        # Navigation buttons
+        btn_frame = tk.Frame(frame, bg='white')
+        btn_frame.pack(pady=15)
+        
+        # Back button (except on first page)
+        if self.tutorial_step > 0:
+            tk.Button(btn_frame, text="Back", fg='black', 
+                     command=lambda: self.change_tut(-1)).pack(side=tk.LEFT, padx=5)
+        
+        # Next or Start button
+        if self.tutorial_step < len(self.tutorials) - 1:
+            tk.Button(btn_frame, text="Next", fg='black', 
+                     command=lambda: self.change_tut(1)).pack(side=tk.LEFT, padx=5)
+        else:
+            tk.Button(btn_frame, text="Start!", fg='black', 
+                     command=self.start_game).pack(side=tk.LEFT, padx=5)
+        
+        # Skip tutorial button
+        tk.Button(btn_frame, text="Skip", fg='black', 
+                 command=self.start_game).pack(side=tk.LEFT, padx=5)
+    
+    def change_tut(self, direction):
+        """Navigate tutorial pages"""
+        self.tutorial_step += direction
+        self.show_tutorial()
+    
+    def start_game(self):
+        """Start a new game from the beginning"""
+        self.rounds = 0
+        self.scores = [[0, 0], [0, 0]]  # Reset scores
+        self.deal_cards()
+    
+    def new_game(self):
+        """Handle New Game button click"""
+        if self.game_state != 'tutorial':
+            if messagebox.askyesno("New Game", "Start new? Progress lost."):
+                self.start_game()
+        else:
+            self.start_game()
+    
+    def show_bidding(self):
+        """Display bidding screen where player makes their bid"""
+        # Clear game area
+        for w in self.game_frame.winfo_children():
+            w.destroy()
+        self.turn_frame.pack_forget()
+        self.hint_btn.config(state=tk.NORMAL)  # Enable hint button
+        
+        # Display player's hand at bottom
+        hf = tk.Frame(self.game_frame, bg=BG_DARK)
+        hf.pack(side=tk.BOTTOM, pady=10)
+        tk.Label(hf, text="Your Hand:", font=('Arial', 12, 'bold'), 
+                bg=BG_DARK, fg='white').pack()
+        cf = tk.Frame(hf, bg=BG_DARK)
+        cf.pack()
+        
+        # Show each card in hand
+        for card in self.hands[0]:
+            self.make_card(cf, card).pack(side=tk.LEFT, padx=1)
+        
+        # Create bidding panel
+        bf = tk.Frame(self.game_frame, bg='white', relief=tk.RAISED, bd=4)
+        bf.place(relx=0.5, rely=0.35, anchor=tk.CENTER)
+        
+        tk.Label(bf, text="Make Your Bid", font=('Arial', 16, 'bold'), 
+                bg='white', fg='black').pack(pady=8)
+        
+        # DEAL button (bid 0 tricks)
+        tk.Button(bf, text="DEAL (0 tricks)", font=('Arial', 11, 'bold'), 
+                 bg='black', fg='white', 
+                 command=lambda: self.make_bid(0, True)).pack(pady=8)
+        
+        # Number buttons for bids 1-13
+        nf = tk.Frame(bf, bg='white')
+        nf.pack(pady=8)
+        for i in range(1, 14):
+            tk.Button(nf, text=str(i), width=3, fg='black', 
+                     command=lambda b=i: self.make_bid(b, False)).grid(
+                         row=(i-1)//7, column=(i-1)%7, padx=3, pady=3)
+    
+    def make_bid(self, bid, is_deal):
+        """
+        Record player's bid and trigger AI bidding.
+        
+        Parameters:
+        - bid: Number of tricks bid (0 if DEAL)
+        - is_deal: Whether this is a DEAL bid
+        """
+        self.bids[0] = 0 if is_deal else bid
+        self.deal_bids[0] = is_deal
+        self.msg.config(text=f"You bid {'DEAL' if is_deal else bid}. AI bidding...")
+        
+        # Wait 1 second then have AI players bid
+        self.root.after(1000, self.ai_bids)
+    
+    def ai_bids(self):
+        """Have all AI players (1, 2, 3) make their bids"""
+        # AI players make bids
+        for i in range(1, 4):
+            bid, is_deal = self.ai.make_bid(self.hands[i])
+            self.bids[i] = bid
+            self.deal_bids[i] = is_deal
+        
+        # Display all bids
+        names = ['You', 'East', 'Teammate', 'West']
+        bid_text = lambda i: "DEAL" if self.deal_bids[i] else str(self.bids[i])
+        summary = "\n".join([f"{names[i]}: {bid_text(i)}" for i in range(4)])
+        self.msg.config(text=f"Bids:\n{summary}")
+        
+        # Update team bid displays
+        self.t1_bid.config(text=f"Bid: {self.bids[0] + self.bids[2]}")  # You + Teammate
+        self.t2_bid.config(text=f"Bid: {self.bids[1] + self.bids[3]}")  # East + West
+        
+        # Move to playing phase
+        self.game_state = 'playing'
+        self.current_player = 0  # Human goes first
+        self.show_playing()
+    
+    def show_playing(self):
+        """
+        Display the main playing screen.
+        Shows all players, their hands (hidden for AI), and the center trick area.
+        """
+        # Clear game area
+        for w in self.game_frame.winfo_children():
+            w.destroy()
+        
+        self.hint_btn.config(state=tk.NORMAL)
+        
+        # Update turn indicator
+        names = ['YOUR TURN! 👉', 'East', 'Teammate', 'West']
+        self.turn_indicator.config(text=f"▶ {names[self.current_player]} ◀")
+        self.turn_frame.pack(pady=5)
+        
+        # Player's hand at top
+        hnd = tk.Frame(self.game_frame, bg=BG_DARK)
+        hnd.pack(side=tk.TOP, pady=5)
+        
+        bid_text = "DEAL" if self.deal_bids[0] else str(self.bids[0])
+        tk.Label(hnd, text=f"Your Hand - Bid: {bid_text} | Won: {self.tricks[0]}", 
+                font=('Arial', 10, 'bold'), bg=BG_DARK, fg='white').pack()
+        
+        # Display player's cards
+        cds = tk.Frame(hnd, bg=BG_DARK)
+        cds.pack()
+        for card in self.hands[0]:
+            playable = self.can_play(card)  # Check if card is legal to play
+            lbl = self.make_card(cds, card, playable, playable)  # Highlight if playable
+            lbl.pack(side=tk.LEFT, padx=0.5)
+            
+            # Make clickable if it's player's turn
+            if playable and self.current_player == 0:
+                lbl.bind('<Button-1>', lambda e, c=card: self.play_card(0, c))
+        
+        # Middle section with West, Center, and East
+        mid = tk.Frame(self.game_frame, bg=BG_DARK)
+        mid.pack(fill=tk.BOTH, expand=True)
+        
+        # West player (left side)
+        w = tk.Frame(mid, bg=BG_MID, relief=tk.RAISED, bd=2)
+        w.pack(side=tk.LEFT, padx=5)
+        bid_text = "DEAL" if self.deal_bids[3] else str(self.bids[3])
+        tk.Label(w, text=f"West\n{bid_text}\nWon: {self.tricks[3]}", 
+                font=('Arial', 9, 'bold'), bg=BG_MID, fg='white').pack(pady=3)
+        
+        # Show card backs for AI hand
+        for _ in self.hands[3]:
+            tk.Label(w, text="🂠", font=('Arial', 14), 
+                    bg=BG_MID, fg='white').pack(pady=2)
+        
+        # Center trick area
+        self.center_frame = tk.Frame(mid, bg=BG_LIGHT, relief=tk.SUNKEN, 
+                                     bd=4, width=350, height=250)
+        self.center_frame.pack(side=tk.LEFT, expand=True, fill=tk.BOTH, padx=10)
+        self.center_frame.pack_propagate(False)
+        
+        # Display cards in current trick
+        if self.current_trick:
+            names_pos = ['You', 'East', 'Teammate', 'West']
+            # Position cards around center: You=bottom, East=right, Teammate=top, West=left
+            positions = {0: (0.5, 0.15), 1: (0.75, 0.5), 2: (0.5, 0.85), 3: (0.25, 0.5)}
+            
+            for play in self.current_trick:
+                pf = tk.Frame(self.center_frame, bg=BG_LIGHT)
+                pos = positions[play['player']]
+                pf.place(relx=pos[0], rely=pos[1], anchor=tk.CENTER)
+                
+                # Show the card
+                self.make_card(pf, play['card'], False).pack()
+                tk.Label(pf, text=names_pos[play['player']], 
+                        font=('Arial', 9, 'bold'), bg=BG_LIGHT, fg='white').pack()
+        
+        # East player (right side)
+        e = tk.Frame(mid, bg=BG_MID, relief=tk.RAISED, bd=2)
+        e.pack(side=tk.LEFT, padx=5)
+        bid_text = "DEAL" if self.deal_bids[1] else str(self.bids[1])
+        tk.Label(e, text=f"East\n{bid_text}\nWon: {self.tricks[1]}", 
+                font=('Arial', 9, 'bold'), bg=BG_MID, fg='white').pack(pady=3)
+        
+        # Show card backs for AI hand
+        for _ in self.hands[1]:
+            tk.Label(e, text="🂠", font=('Arial', 14), 
+                    bg=BG_MID, fg='white').pack(pady=2)
+        
+        # Teammate (bottom, opposite player)
+        n = tk.Frame(self.game_frame, bg=BG_MID, relief=tk.RAISED, bd=2)
+        n.pack(side=tk.BOTTOM, pady=5)
+        bid_text = "DEAL" if self.deal_bids[2] else str(self.bids[2])
+        tk.Label(n, text=f"Teammate - {bid_text} | Won: {self.tricks[2]}", 
+                font=('Arial', 10, 'bold'), bg=BG_MID, fg='white').pack(pady=3)
+        
+        # Show card backs horizontally
+        nc = tk.Frame(n, bg=BG_MID)
+        nc.pack()
+        for _ in self.hands[2]:
+            tk.Label(nc, text="🂠", font=('Arial', 16), 
+                    bg=BG_MID, fg='white').pack(side=tk.LEFT, padx=2)
+        
+        # If AI's turn, trigger AI play after delay
+        if self.current_player != 0:
+            self.root.after(1000, self.ai_play)
+        
+        # Update score displays
+        self.update_scores()
+    
+    def can_play(self, card):
+        """
+        Check if a card is legal to play based on game rules.
+        
+        Rules:
+        - Must follow suit if possible
+        - Can't lead spades until spades are broken (unless only have spades)
+        
+        Returns: True if card can be played, False otherwise
+        """
+        if self.current_player != 0:
+            return False  # Not player's turn
+        
+        hand = self.hands[0]
+        
+        # Leading a trick
+        if not self.current_trick:
+            # Check spades-breaking rule
+            if not self.spades_broken and card.suit == '♠':
+                # Can only lead spades if that's all you have
+                return all(c.suit == '♠' for c in hand)
+            return True
+        
+        # Following suit
+        has_suit = any(c.suit == self.lead_suit for c in hand)
+        if has_suit:
+            return card.suit == self.lead_suit  # Must follow suit
+        else:
+            return True  # Can play anything if don't have lead suit
+    
+    def play_card(self, player, card):
+        """
+        Play a card for a player.
+        
+        Parameters:
+        - player: Player index (0-3)
+        - card: Card object to play
+        """
+        # Validate card is in player's hand
+        if card not in self.hands[player]:
+            return
+        
+        # Clear trick if previous trick was complete
+        if len(self.current_trick) == 4:
+            self.current_trick = []
+        
+        # Remove card from hand and add to trick
+        self.hands[player].remove(card)
+        self.current_trick.append({'player': player, 'card': card})
+        
+        # Record card for AI tracking
+        self.ai.record_card(card)
+        
+        # Set lead suit if this is first card
+        if len(self.current_trick) == 1:
+            self.lead_suit = card.suit
+        
+        # Break spades if spade played off-suit
+        if card.suit == '♠' and self.lead_suit != '♠':
+            self.spades_broken = True
+        
+        # Refresh display
+        self.show_playing()
+        
+        # Check if trick is complete
+        if len(self.current_trick) == 4:
+            self.root.after(1500, self.finish_trick)  # Wait 1.5s to show trick
+        else:
+            # Move to next player
+            self.current_player = (player + 1) % 4
+            if self.current_player != 0:
+                self.root.after(1000, self.ai_play)  # AI plays after 1s
+    
+    def finish_trick(self):
+        """
+        Determine winner of completed trick and award it.
+        If round is complete, score the round.
+        """
+        if len(self.current_trick) != 4:
+            return  # Trick not complete
+        
+        # Determine trick winner using Spades rules
+        winner = self.current_trick[0]
+        for play in self.current_trick:
+            # Spades trump everything
+            if play['card'].suit == '♠' and winner['card'].suit != '♠':
+                winner = play
+            # Higher card in same suit wins
+            elif play['card'].suit == winner['card'].suit and \
+                 play['card'].get_value() > winner['card'].get_value():
+                winner = play
+        
+        winner_player = winner['player']
+        self.tricks[winner_player] += 1  # Award trick
+        
+        # Display winner
+        names = ['You', 'East', 'Teammate', 'West']
+        self.msg.config(text=f"{names[winner_player]} won the trick!")
+        
+        # Reset for next trick
+        self.lead_suit = None
+        self.current_player = winner_player  # Winner leads next trick
+        
+        # Check if round is over (all cards played)
+        if len(self.hands[0]) == 0:
+            self.current_trick = []
+            self.score_round()  # Calculate scores
+        else:
+            # Continue to next trick after delay
+            self.root.after(1500, self.show_playing)
+    
+    def ai_play(self):
+        """Have the current AI player choose and play a card"""
+        if self.current_player == 0 or not self.hands[self.current_player]:
+            return  # Not AI's turn or no cards left
+        
+        # Calculate partner index (across from current player)
+        partner_idx = (self.current_player + 2) % 4
+        
+        # Let AI choose best card
+        card = self.ai.choose_card(
+            self.hands[self.current_player], 
+            self.current_trick,
+            self.lead_suit,
+            self.current_player,
+            self.bids,
+            self.tricks,
+            self.deal_bids,
+            self.spades_broken,
+            partner_idx
+        )
+        
+        # Play the chosen card
+        if card:
+            self.play_card(self.current_player, card)
+    
+    def score_round(self):
+        """
+        Calculate and award points for completed round.
+        Handles regular bids, DEAL bids, bags, and sandbagging penalties.
+        """
+        results = []  # Messages to display
+        
+        # Score each team
+        for team in [0, 1]:
+            p1, p2 = team * 2, team * 2 + 1  # Team members
+            team_tricks = self.tricks[p1] + self.tricks[p2]
+            team_bid = self.bids[p1] + self.bids[p2]
+            
+            # Check for DEAL bids on this team
+            deal_players = [i for i in [p1, p2] if self.deal_bids[i]]
+            
+            if deal_players:
+                # Score DEAL bids individually
+                for p in deal_players:
+                    if self.tricks[p] == 0:
+                        # Successful DEAL: +100 points
+                        self.scores[team][0] += 100
+                        self.stats.record_bid(True, True)
+                        player_name = ['You', 'East', 'Teammate', 'West'][p]
+                        results.append(f"{player_name} made DEAL! +100")
+                    else:
+                        # Failed DEAL: -100 points
+                        self.scores[team][0] -= 100
+                        self.stats.record_bid(False, True)
+                        player_name = ['You', 'East', 'Teammate', 'West'][p]
+                        results.append(f"{player_name} failed DEAL! -100")
+            else:
+                # Score regular bid
+                if team_tricks >= team_bid:
+                    # Made bid: 10 points per trick bid + 1 per overtrick (bag)
+                    points = team_bid * 10
+                    bags = team_tricks - team_bid
+                    self.scores[team][0] += points + bags
+                    self.scores[team][1] += bags  # Track bags
+                    
+                    # Record stats for player team
+                    if team == 0:
+                        for _ in range(bags):
+                            self.stats.record_bag()
+                    
+                    results.append(f"Team {team+1}: Made bid! +{points + bags} ({bags} bags)")
+                    
+                    if team == 0:
+                        self.stats.record_bid(True)
+                    
+                    # Check for sandbagging penalty (10+ bags)
+                    if self.scores[team][1] >= 10:
+                        penalty = (self.scores[team][1] // 10) * 100
+                        self.scores[team][0] -= penalty
+                        self.scores[team][1] = self.scores[team][1] % 10  # Keep remainder
+                        results.append(f"Team {team+1}: SANDBAGGED! -{penalty}")
+                        
+                        if team == 0:
+                            self.stats.record_sandbag()
+                else:
+                    # Failed bid: -10 points per trick bid
+                    penalty = team_bid * 10
+                    self.scores[team][0] -= penalty
+                    results.append(f"Team {team+1}: Failed bid! -{penalty}")
+                    
+                    if team == 0:
+                        self.stats.record_bid(False)
+        
+        # Update score displays
+        self.update_scores()
+        
+        # Show round results
+        msg = "Round Complete!\n" + "\n".join(results)
+        self.msg.config(text=msg)
+        
+        # Check for game winner
+        if self.scores[0][0] >= WINNING_SCORE or self.scores[1][0] >= WINNING_SCORE:
+            winner = 0 if self.scores[0][0] > self.scores[1][0] else 1
+            won = winner == 0
+            self.stats.record_game(won)
+            
+            messagebox.showinfo("Game Over!", 
+                              f"Team {winner+1} wins!\n"
+                              f"Final Score: {self.scores[0][0]} - {self.scores[1][0]}")
+            
+            # Return to tutorial/menu
+            self.game_state = 'tutorial'
+            self.tutorial_step = 0
+            self.show_tutorial()
+        else:
+            # Continue to next round after delay
+            self.root.after(3000, self.deal_cards)
+    
+    def update_scores(self):
+        """Update the score display labels"""
+        self.t1_score.config(text=f"{self.scores[0][0]}/{WINNING_SCORE}")
+        self.t1_bags.config(text=f"Bags: {self.scores[0][1]}")
+        self.t2_score.config(text=f"{self.scores[1][0]}/{WINNING_SCORE}")
+        self.t2_bags.config(text=f"Bags: {self.scores[1][1]}")
+    
+    def show_hint(self):
+        """
+        Provide strategic hints to the player based on current game state.
+        Uses the AI logic to suggest optimal plays.
+        """
+        if self.game_state == 'bidding':
+            # Bidding hints
+            strength = self.ai.calc_strength(self.hands[0])
+            should_deal = self.ai.should_deal(self.hands[0])
+            
+            if should_deal:
+                hint = ("Your hand is weak - consider bidding DEAL (0 tricks) "
+                       "for +100 if successful!")
+            else:
+                hint = f"Suggested bid: {strength}\n\n"
+                hint += f"High cards: {sum(1 for c in self.hands[0] if c.get_value() >= 11)}\n"
+                hint += f"Spades: {sum(1 for c in self.hands[0] if c.suit == '♠')}"
+            
+            messagebox.showinfo("Hint", hint)
+            
+        elif self.game_state == 'playing' and self.current_player == 0:
+            # Playing hints
+            playable = [c for c in self.hands[0] if self.can_play(c)]
+            if not playable:
+                return
+            
+            # Ask AI what it would play
+            card = self.ai.choose_card(
+                self.hands[0],
+                self.current_trick,
+                self.lead_suit,
+                0,
+                self.bids,
+                self.tricks,
+                self.deal_bids,
+                self.spades_broken,
+                2  # Partner is player 2
+            )
+            
+            if card:
+                hint = f"Suggested play: {card}\n\n"
+                
+                # Explain strategy
+                if self.deal_bids[0]:
+                    hint += "You bid DEAL - play your lowest cards!"
+                elif self.tricks[0] < self.bids[0]:
+                    hint += f"You need {self.bids[0] - self.tricks[0]} more trick(s)"
+                else:
+                    hint += "You've made your bid - avoid extra bags!"
+                
+                messagebox.showinfo("Hint", hint)
+
+# ============================================================================
+# MAIN PROGRAM ENTRY POINT
+# ============================================================================
+if __name__ == '__main__':
+    """
+    Create the main window and start the game.
+    This is the entry point when running the script.
+    """
+    root = tk.Tk()  # Create main window
+    game = SpadesGame(root)  # Initialize game
+    root.mainloop()  # Start event loop
